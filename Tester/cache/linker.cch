@@ -1,0 +1,4 @@
+template=try
+file=cache\linker\5
+output=someOtherText
+sequence=6

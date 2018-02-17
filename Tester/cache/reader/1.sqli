@@ -1,0 +1,36 @@
+
+create tarakan as (
+select pk1, pk2, info1, info2, info3
+from какашка
+where '2017-05-12 22:11:00' between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (pk1, pk2);
+create tarakan as (
+select pk1, pk2, info1, info2, info3
+from какашка
+where '2017-05-12 22:11:00' between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (pk1, pk2);
+create tarakan as (
+select pk1, pk2, info1, info2, info3
+from какашка
+where '2017-05-12 22:11:00' between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (pk1, pk2);
+#gateway try1 in
+create tarakan as (
+select pk1, pk2, info1, info2, info3
+from какашка
+where '2017-05-12 22:11:00' between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (pk1, pk2);
+#gateway try1 eval if (output = 0) branch1 try1 (else) branch2 try1
+#branch1 try1
+create tarakan as (
+select pk1, pk2, info1, info2, info3
+from какашка
+where '2017-05-12 22:11:00' between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (pk1, pk2);
+#branch2 try1
+create tarakan as (
+select pk1, pk2, info1, info2, info3
+from какашка
+where '2017-05-12 22:11:00' between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (pk1, pk2);
+#gateway try1 out

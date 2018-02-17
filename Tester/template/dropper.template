@@ -1,0 +1,4 @@
+#simple
+#output: next
+
+call base.drop_table('<output next>');

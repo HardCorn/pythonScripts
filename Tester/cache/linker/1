@@ -1,0 +1,61 @@
+#try1
+
+#sample2
+create <output> as (
+select <all_atrs>
+from <source>
+where <parameter> between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (<pk_atrs>);
+#try1
+
+#sample3
+create <output> as (
+select <all_atrs>
+from <source>
+where <parameter> between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (<pk_atrs>);
+#try1
+
+#sample4
+create <output> as (
+select <all_atrs>
+from <source>
+where <parameter> between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (<pk_atrs>);
+#try1
+
+
+#gateway try1 in
+
+#sample5
+create <output> as (
+select <all_atrs>
+from <source>
+where <parameter> between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (<pk_atrs>);
+#try1
+
+#gateway try1 eval if (output = 0) branch1 try1 (else) branch2 try1
+#branch1 try1
+
+#sample6
+create <output> as (
+select <all_atrs>
+from <source>
+where <parameter> between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (<pk_atrs>);
+#try1
+
+#branch2 try1
+
+#sample7
+create <output> as (
+select <all_atrs>
+from <source>
+where <parameter> between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (<pk_atrs>);
+#try1
+
+#gateway try1 out
+
+

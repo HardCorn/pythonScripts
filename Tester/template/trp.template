@@ -1,0 +1,19 @@
+#simple
+#output: parent
+
+create table <output> as (
+select 
+proto.<all_atrs><,>
+from <table1> as proto left join <table2> as etl on
+<and>proto.<pk_atrs> = etl.<pk_atrs>
+ and proto.<other_atrs> = etl.<other_atrs> or (proto.<other_atrs> is null and etl.<other_atrs> is null)<>
+where 
+etl.<pk_atrs> is null<or>
+union
+select 
+<,>etl.<all_atrs>
+from <table2> as etl left join <table1> as proto on
+<and>proto.<pk_atrs> = etl.<pk_atrs>
+ and proto.<other_atrs> = etl.<other_atrs> or (proto.<other_atrs> is null and etl.<other_atrs> is null)<>
+where proto.<not_null_field> is null
+) with data primary index (<pk_atrs>);

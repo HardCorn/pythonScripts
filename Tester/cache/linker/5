@@ -1,0 +1,6 @@
+create <output> as (
+select <all_atrs>
+from <source>
+where <parameter> between EFFECTIVE_FROM_DTTM and EFFECTIVE_TO_DTTM
+) with data primary index (<pk_atrs>);
+<output sample>

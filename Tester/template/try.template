@@ -1,0 +1,9 @@
+#meta interact
+#output:someOtherText
+#testattr: tarakan
+
+<interact><loop><lookup, trash><template sample>
+<interact><if><output = someOtherText><template sample>
+<interact><case><output = 0><template sample><output = x><template sample>
+<interact><sql><template sample><if><output = 0><template sample><else><template sample>
+<output sample>
