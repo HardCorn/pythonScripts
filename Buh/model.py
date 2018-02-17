@@ -175,7 +175,6 @@ def remap_str(str_, attr_list, file_map, defaults):
     res_str = defaults
     for num in range(len(attr_list)):
         each = attr_list[num]
-        print(each)
         if each not in file_map:
             raise ValueError('Error mapping string: attribute \'{}\' not found'.format(each))
         res_str[file_map[each] - 1] = str_[num]
@@ -328,15 +327,27 @@ class ModelFileWorker:
             part_dict[part_name].append(each)                       # дописываем строку
         return part_dict
 
-    def _check_attr_list(self, list_str, attr_list, row_map):
+    def _get_first_n_attrs(self, attr_dict, n=1):
+        return list(attr_dict[each + 1][ATTRIBUTE_NAME_KEY] for each in range(n))
+
+    def _check_attr_list(self, list_str, attr_list, row_map, attr_dict, defaults, file_map):
         sample_str = list_str[0]
         if attr_list is None:
             if len(sample_str) == len(row_map):
                 return True
             else:
-                raise ValueError('Error writing data: blank attribute list for writing desynchronized data')
+                try_list = self._get_first_n_attrs(attr_dict, len(sample_str))
+                str_list_refactor(row_map, sample_str, try_list, file_map, defaults)
+                return False
+                # raise ValueError('Error writing data: blank attribute list for writing desynchronized data')
         if len(attr_list) != len(sample_str):
-            raise ValueError('Error writing data: desync metadata: expected {0} attributes, but {1} attributes found')
+            raise ValueError('Error writing data: desync metadata: expected {0} attributes, but {1} attributes found'.format(
+                len(attr_list), len(sample_str)
+            ))
+        for num in range(len(attr_dict)):
+            if attr_dict[num + 1][ATTRIBUTE_NAME_KEY] != attr_list[num]:
+                return False
+        return True
 
     def write_model_data(self, name: str, list_str: list, attr_list=None, brutal=False):
         """Procedure writes model to data files (and do nothing with it's header)"""
@@ -352,8 +363,9 @@ class ModelFileWorker:
         attr_dict = self.model_meta[name][ATTRIBUTE_KEY]
         defaults = list(attr_dict[each + 1][OPTION_DEFAULT_KEY] for each in range(len(attr_dict)))
         file_map = self.get_file_map(name, header_validation=False)
-        no_remap = self._check_attr_list()
-        print(file_map)
+        no_remap = self._check_attr_list(list_str, attr_list, row_map, attr_dict, defaults, file_map)
+        if attr_list is None:
+            attr_list = self._get_first_n_attrs(attr_dict, len(list_str[0]))
         if brutal:
             mode = 'w'
         else:
