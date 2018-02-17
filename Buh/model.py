@@ -172,17 +172,22 @@ def read_model_data(file_path, row_map, delim=';'):
 
     
 def remap_str(str_, attr_list, file_map, defaults):
-    res_str = defaults
+    res_str = list(defaults)
     for num in range(len(attr_list)):
         each = attr_list[num]
         if each not in file_map:
             raise ValueError('Error mapping string: attribute \'{}\' not found'.format(each))
         res_str[file_map[each] - 1] = str_[num]
     return res_str
+
+
+def remap_list(list_str, attr_list, file_map, defaults):
+    for num in range(len(list_str)):
+        list_str[num] = remap_str(list_str[num], attr_list, file_map, defaults)
     
 
 def str_list_refactor(row_map, str_, attr_list, file_map, defaults, no_remap=False):           # перекодировка строки через row_map
-    if not no_remap:
+    if not no_remap: # only for check
         str_ = remap_str(str_, attr_list, file_map, defaults)
     for num in range(len(str_)):
         if str_[num] is None:                 # вместо None ставим пустую строку
@@ -330,24 +335,41 @@ class ModelFileWorker:
     def _get_first_n_attrs(self, attr_dict, n=1):
         return list(attr_dict[each + 1][ATTRIBUTE_NAME_KEY] for each in range(n))
 
-    def _check_attr_list(self, list_str, attr_list, row_map, attr_dict, defaults, file_map):
+    def _check_attr_list(self, model_name, list_str, attr_list, row_map, attr_dict, defaults, file_map):
         sample_str = list_str[0]
         if attr_list is None:
             if len(sample_str) == len(row_map):
                 return True
             else:
-                try_list = self._get_first_n_attrs(attr_dict, len(sample_str))
-                str_list_refactor(row_map, sample_str, try_list, file_map, defaults)
                 return False
-                # raise ValueError('Error writing data: blank attribute list for writing desynchronized data')
         if len(attr_list) != len(sample_str):
             raise ValueError('Error writing data: desync metadata: expected {0} attributes, but {1} attributes found'.format(
                 len(attr_list), len(sample_str)
             ))
+        for each in attr_list:
+            if each not in file_map:
+                raise ValueError('Error writing data: attribute \'{0}\' not found in model \'{1}\''.format(
+                    each, model_name
+                ))
         for num in range(len(attr_dict)):
             if attr_dict[num + 1][ATTRIBUTE_NAME_KEY] != attr_list[num]:
                 return False
         return True
+
+    def _get_default_values(self, model_name):
+        attr_dict = self.model_meta[model_name][ATTRIBUTE_KEY]
+        res_list = list(range(len(attr_dict)))
+        for each in range(len(attr_dict)):
+            def_ = attr_dict[each + 1][OPTION_DEFAULT_KEY]
+            typ_ = attr_dict[each + 1][ATTRIBYTE_TYPE_KEY]
+            if typ_ not in (DATETIME_VALUE, DATE_VALUE) \
+                or def_ in (ACTUALITY_DTTM_VALUE, ACTUALITY_DATE_VALUE, None):
+                res_list[each] = def_
+            elif typ_ == DATE_VALUE:
+                res_list[each] = str_to_date(def_)
+            else:
+                res_list[each] = str_to_datetime(def_)
+        return res_list
 
     def write_model_data(self, name: str, list_str: list, attr_list=None, brutal=False):
         """Procedure writes model to data files (and do nothing with it's header)"""
@@ -361,9 +383,15 @@ class ModelFileWorker:
         row_map = self._get_row_map(name)           # получаем карту строки
         delim = self.model_meta[name][FILE_DELIMITER_KEY]
         attr_dict = self.model_meta[name][ATTRIBUTE_KEY]
-        defaults = list(attr_dict[each + 1][OPTION_DEFAULT_KEY] for each in range(len(attr_dict)))
+        # defaults = list(attr_dict[each + 1][OPTION_DEFAULT_KEY] for each in range(len(attr_dict)))
+        defaults = self._get_default_values(name)
         file_map = self.get_file_map(name, header_validation=False)
-        no_remap = self._check_attr_list(list_str, attr_list, row_map, attr_dict, defaults, file_map)
+        no_remap = self._check_attr_list(name, list_str, attr_list, row_map, attr_dict, defaults, file_map)
+        if not no_remap:
+            if attr_list is None:
+                attr_list = self._get_first_n_attrs(attr_dict, len(list_str[0]))
+            remap_list(list_str, attr_list, file_map, defaults)
+            no_remap = True
         if attr_list is None:
             attr_list = self._get_first_n_attrs(attr_dict, len(list_str[0]))
         if brutal:
@@ -482,11 +510,11 @@ class ModelFileWorker:
             result += self._read_partition(name, each, filter_=filter_, file_map=file_map, sel_attrs=selected)
         return result   # если не прочли ни одной партиции - на выходе будет пустой список
 
-    def insert_simple_data(self, model, str_):
+    def insert_simple_data(self, model, str_, attr_list=None):
         """Will append a single string to a model file"""
         list_str = list()
         list_str.append(str_)
-        self.write_model_data(model, list_str)
+        self.write_model_data(model, list_str, attr_list)
 
     def _validate_header(self, name, header=None, validation_mode=True, brutal_read=False, no_read=False):
         """Function return model header"""
@@ -570,7 +598,16 @@ class ModelFileWorker:
         header[ATTRIBUTE_KEY][num][OPTION_DEFAULT_KEY] = None   # кастомные опции будут дописаны позже ставим умолчания
         header[ATTRIBUTE_KEY][num][OPTION_HIDE_KEY] = False
         for each in kwargs:                                     # проставляем custom опции атрибутов
-            header[ATTRIBUTE_KEY][num][each] = kwargs[each]
+            if each == OPTION_DEFAULT_KEY:
+                if attribute_type in (DATE_VALUE, DATETIME_VALUE) and kwargs[each] not in (ACTUALITY_DATE_VALUE, ACTUALITY_DTTM_VALUE):
+                    if attribute_type == DATE_VALUE:
+                        header[ATTRIBUTE_KEY][num][each] = date_to_str(kwargs[each])
+                    if attribute_type == DATETIME_VALUE:
+                        header[ATTRIBUTE_KEY][num][each] = datetime_to_str(kwargs[each])
+                else:
+                    header[ATTRIBUTE_KEY][num][each] = kwargs[each]
+            else:
+                header[ATTRIBUTE_KEY][num][each] = kwargs[each]
         self._validate_header(model_name, header, no_read=True) # проверяем новый заголовок
         self._change_header(model_name, header)                 # и подменяем его
 
@@ -707,8 +744,22 @@ class ModelFileWorker:
             raise ValueError('Error model creation: Unknown type for \'default\' parameter! Use dictionary!')
         for each in header[ATTRIBUTE_KEY]:                                          # проставим опции атрибутов для представлений
             attr_name = header[ATTRIBUTE_KEY][each][ATTRIBUTE_NAME_KEY]
+            attr_type = header[ATTRIBUTE_KEY][each][ATTRIBYTE_TYPE_KEY]
             if (type(defaults) == dict and attr_name in defaults):                  # значения по умолчанию
-                def_ = defaults[attr_name]
+                if attr_type == DATE_VALUE and defaults[attr_name] != ACTUALITY_DATE_VALUE:
+                    if type(defaults[attr_name]) == str:
+                        str_to_date(defaults[attr_name])
+                        def_ = defaults[attr_name]
+                    else:
+                        def_ = date_to_str(defaults[attr_name])
+                elif attr_type == DATETIME_VALUE and defaults[attr_name] != ACTUALITY_DTTM_VALUE:
+                    if type(defaults[attr_name]) == str:
+                        str_to_datetime(defaults[attr_name])
+                        def_ = defaults[attr_name]
+                    else:
+                        def_ = datetime_to_str(defaults[attr_name])
+                else:
+                    def_ = defaults[attr_name]
             else:
                 def_ = None
             if (type(hide) == str and attr_name == hide) \
@@ -721,6 +772,7 @@ class ModelFileWorker:
         os.mkdir(self.model_meta[DATA_PATH] + name)                                 # создадим директорию для файлов данных
         self._validate_header(name, header, validation_mode=True, no_read=True) # Проверим созданный заголовок
         self._change_header(name, header)   # и в конце заводим заголовок в метаданные и пишем его файл
+        del self.model_meta[name]           # Параметрами передаются списки и словари. на всякий случай рвем связь с метаданными
 
     def get_model_header(self, model_name): # просто читаем и отдаем заголовок
         self._read_header(model_name)
@@ -798,23 +850,28 @@ if __name__ == '__main__':
                   'info_field1': 'str',
                   'info_field2': 'int',
                   'date_field': 'date'}
+    defaults_dict = {'key_field': 'no_sense_string',
+                     'info_field1': 'i\'m a monkey',
+                     'info_field2': 42,
+                     'date_field': dt.date(2015,12,29)}
     partition_dict = {'date_field': 'YYYYMM',
                       'info_field2': None}
-    a.create_model('New_model', attrs_dict, 'key_field', partition_dict)
+    a.create_model('New_model', attrs_dict, 'key_field', partition_dict, delim='|^|', defaults=defaults_dict)
     a.insert_simple_data('New_model', ['k1', 'i1', 3, dt.date(2018,1,1)])
     a.insert_simple_data('New_model', ['k1', 'i1', 3, dt.date(2018, 2, 1)])
     a.write_model_data('New_model', [['k2', 'i1', 3, dt.date(2018,1,2)],['k1', 'i1', 4, dt.date(2018,1,3)]])
-    a.add_attribute('New_model', 'info_field3', 'float')
-    a.add_attribute('New_model', 'info_field4', 'dttm')
+    a.add_attribute('New_model', 'info_field3', 'float', default=3.14)
+    a.add_attribute('New_model', 'info_field4', 'dttm', default=dt.datetime(1,1,1))
     a.rename_attribute('New_model', 'info_field3', 'floating_data')
     a.delete_attribute('New_model', 'info_field2')
     a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000,11,10,5,30), None, ACTUALITY_DTTM_VALUE, 3.5])
     a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000, 11, 10, 5, 30), dt.date(2018, 4, 1), ACTUALITY_DTTM_VALUE, 321365654438433452456475864674.5123456789])
-    # sel = None #['date_field', 'floating_data', 'key_field']
-    # print(a.read_model_data('New_model', selected=sel))
+    a.insert_simple_data('New_model', ['k6', dt.date(2017,5,14)], ['key_field', 'date_field'])
     a.modify_partition('New_model', 'remove', 'date_field')
     a.modify_partition('New_model', 'add', 'date_field', 'YYYYMMDD')
     a.modify_partition('New_model', 'reformat', 'date_field','YYYYMM')
+    sel = ['date_field', 'floating_data', 'key_field']
+    print(a.read_model_data('New_model', selected=sel))
     print(a.read_model_data('New_model'))
     print(a.get_file_map('New_model'))
     print(a._get_row_map('New_model'))
@@ -822,3 +879,5 @@ if __name__ == '__main__':
     # c = str_to_datetime('2017-08-05 04:12:33.000055')
     # print(get_date_postfix('2017-08-05 04:12:33.000055', date_fmt=DATETIME_DEFAULT_FMT))
     # print(get_model_data_ name('n', DEFAULT_SINGLE_PARTITION_VAL))
+
+    # 'default'
