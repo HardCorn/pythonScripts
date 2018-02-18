@@ -120,6 +120,7 @@ def smart_split(str_, split_list=' ()\t\n,'):
             tmp_word = ''
         elif tmp == 'none':
             res.append(tmp_word + ' ' + tmp)
+            tmp_word = ''
         elif tmp_word == 'not':
             if tmp_word != '':
                 res.append(tmp_word)
@@ -272,6 +273,6 @@ class Filter:
 
 
 if __name__ == '__main__':
-    str = "1 = 0 and 1 not in '2' or ('2018-01-01' < '2018-01-02')"
+    str = "1 = 0 and 1 not in '2' or ('2018-01-01' < '2018-01-02') and self_name is none ('22', '33', '44')"
     print(str)
     print(smart_split(str))
