@@ -34,6 +34,8 @@ def str_to_date(str_, fmt=DATE_DEFAULT_FMT):
 def datetime_to_str(date, fmt=DATETIME_DEFAULT_FMT):
     if type(date) == str and date == ACTUALITY_DTTM_VALUE:  # проставляем current_timestamp
         date = dt.datetime.now()
+    elif type(date) == str:
+        date = str_to_datetime(date)
     if type(date) != dt.datetime:
         raise er.UtilityException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
     return dt.datetime.strftime(date, refmt(fmt))
@@ -42,6 +44,8 @@ def datetime_to_str(date, fmt=DATETIME_DEFAULT_FMT):
 def date_to_str(date, fmt=DATE_DEFAULT_FMT):
     if type(date) == str and date == ACTUALITY_DATE_VALUE:  # проставляем current_date
         date = dt.datetime.now().date()
+    elif type(date) == str:
+        date = str_to_date(date)
     if type(date) != dt.date:
         raise er.UtilityException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
     return dt.date.strftime(date, refmt(fmt))
@@ -63,11 +67,11 @@ def str_to_type(str_):
     if str_.count('.') == 1 and str_.replace('.', '').isnumeric():
         return float(str_)
     try:
-        return str_to_date(str_)
+        return str_to_date(str_.strip('\''))
     except Exception:
         pass
     try:
-        return str_to_datetime(str_)
+        return str_to_datetime(str_.strip('\''))
     except Exception:
         pass
     return str_
@@ -127,10 +131,10 @@ def smart_split(str_, split_list=' ()\t\n,'):
             if tmp_word != '':
                 res.append(tmp_word)
             if qt_end != -1:
-                res.append(tmp[qt_start:qt_end + 3])
+                res.append(str_to_type(tmp[qt_start:qt_end + 3].replace('"', '\'\'')))
                 buffer = tmp[qt_end + 3:] + buffer
             elif bf_qt != -1:
-                res.append(tmp[qt_start:] + buffer[:bf_qt + 3])
+                res.append(str_to_type(tmp[qt_start:] + buffer[:bf_qt + 3].replace('"', '\'\'')))
                 buffer = buffer[bf_qt + 3:]
             else:
                 raise er.UtilityException('Smart split error: unclosed quotation mark')
@@ -138,20 +142,11 @@ def smart_split(str_, split_list=' ()\t\n,'):
         else:
             if delimiter != ',' and tmp != '':
                 res.append(str_to_type(tmp))
-        if delimiter == '(':
+        if delimiter in ('(', ',', ')'):
             res.append(delimiter)
-        elif delimiter == ',':
-            if res[len(res) - 1] == ')' and tmp_list == list():
-                res.pop()
-            tmp_list.append(tmp)
-        elif delimiter == ')':
-            if tmp_list:
-                tmp_list.append(tmp)
-                res.append(tmp_list)
-            else:
-                res.append(delimiter)
         delim = get_min_delimiter(buffer)
-    res.append(str_to_type(buffer))
+    if buffer != '':
+        res.append(str_to_type(buffer))
     return res
 
 
@@ -277,6 +272,6 @@ class Filter:
 
 
 if __name__ == '__main__':
-    str = "1 = 0 and 1 not in 2 or ('2018-01-01' < '2018-01-02')"
+    str = "1 = 0 and 1 not in '2' or ('2018-01-01' < '2018-01-02')"
     print(str)
     print(smart_split(str))
