@@ -57,6 +57,104 @@ TYPE_COMPARE = {
 }
 
 
+def str_to_type(str_):
+    if str_.isnumeric():
+        return int(str_)
+    if str_.count('.') == 1 and str_.replace('.', '').isnumeric():
+        return float(str_)
+    try:
+        return str_to_date(str_)
+    except Exception:
+        pass
+    try:
+        return str_to_datetime(str_)
+    except Exception:
+        pass
+    return str_
+
+
+def get_min_delimiter(str_, split_list=' ()\t\n,'):
+    tmp = list()
+    for each in (split_list):
+        tmp2 = str_.find(each)
+        if tmp2 != -1:
+            tmp.append(tmp2)
+    tmp.sort()
+    if len(tmp) > 0:
+        return tmp[0]
+    else:
+        return -1
+
+
+def smart_split(str_, split_list=' ()\t\n,'):
+    res = list()
+    tmp_list = list()
+    buffer = str_.lower().replace('\'\'', '"')
+    tmp_word = ''
+    delim = get_min_delimiter(buffer, split_list)
+    while delim != -1:
+        tmp = buffer[:delim]
+        delimiter = buffer[delim]
+        buffer = buffer[delim + 1:]
+        qt_start = tmp.find("'")
+        if tmp in ('and', 'or'):
+            res.append(tmp)
+        elif tmp in ('<', '>', '<=', '>=', '=', '<>', 'like', '+', '-', '*', '/', '**'):
+            res.append(tmp)
+        elif tmp in ('not', 'is'):
+            if tmp_word == 'is' and tmp == 'not':
+                tmp_word += ' ' + tmp
+            else:
+                if tmp_word != '':
+                    res.append(tmp_word)
+                tmp_word = tmp
+        elif tmp == 'in':
+            if tmp_word == 'not':
+                res.append(tmp_word + ' ' + tmp)
+            else:
+                res.append(tmp)
+            tmp_word = ''
+        elif tmp == 'none':
+            res.append(tmp_word + ' ' + tmp)
+        elif tmp_word == 'not':
+            if tmp_word != '':
+                res.append(tmp_word)
+            tmp_word = tmp
+        elif qt_start != -1:
+            tmp_word += tmp[:qt_start]
+            qt_end = tmp[qt_start + 1:].find("'")
+            bf_qt = buffer.find("'")
+            if tmp_word != '':
+                res.append(tmp_word)
+            if qt_end != -1:
+                res.append(tmp[qt_start:qt_end + 3])
+                buffer = tmp[qt_end + 3:] + buffer
+            elif bf_qt != -1:
+                res.append(tmp[qt_start:] + buffer[:bf_qt + 3])
+                buffer = buffer[bf_qt + 3:]
+            else:
+                raise er.UtilityException('Smart split error: unclosed quotation mark')
+            tmp_word = ''
+        else:
+            if delimiter != ',' and tmp != '':
+                res.append(str_to_type(tmp))
+        if delimiter == '(':
+            res.append(delimiter)
+        elif delimiter == ',':
+            if res[len(res) - 1] == ')' and tmp_list == list():
+                res.pop()
+            tmp_list.append(tmp)
+        elif delimiter == ')':
+            if tmp_list:
+                tmp_list.append(tmp)
+                res.append(tmp_list)
+            else:
+                res.append(delimiter)
+        delim = get_min_delimiter(buffer)
+    res.append(str_to_type(buffer))
+    return res
+
+
 def get_right_type(left, right):
     tp_left = type(left)
     tp_right = type(right)
@@ -158,7 +256,11 @@ def get_expr_type(operator):
 
 
 class ExpressionParser:
-    pass
+    def __init__(self, str_):
+        self.str_ = str_
+
+    def parse_input(self):
+        pass
 
 
 class Filter:
@@ -175,5 +277,6 @@ class Filter:
 
 
 if __name__ == '__main__':
-    a = LogicExpr(2, '>', '3')
-    print(isinstance(a, Expression))
+    str = "1 = 0 and 1 not in 2 or ('2018-01-01' < '2018-01-02')"
+    print(str)
+    print(smart_split(str))

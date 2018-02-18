@@ -1,5 +1,6 @@
 import re
 
+
 def less(left, right):
     return left < right
 
@@ -58,32 +59,38 @@ def like(left, right):
 
 
 def is_none(variable):
-    if variable is None:
-        return False
     return variable is None
 
 
 def is_not_none(variable):
-    if variable is None:
-        return False
     return variable is not None
 
 
 def and_(left, right):
     if left is None or right is None:
         return False
+    if left == False or right == False:
+        return False
+    if type(left) != bool or type(right) != bool:
+        raise ValueError('Comparison of non-bool variables {0}, {1}'.format(left, right))
     return left and right
 
 
 def or_(left, right):
     if left is None or right is None:
         return False
+    if left == True or right == True:
+        return True
+    if type(left) != bool or type(right) != bool:
+        raise ValueError('Comparison of non-bool variables {0}, {1}'.format(left, right))
     return left or right
 
 
 def not_(variable):
     if variable is None:
         return False
+    if type(variable) != bool:
+        raise ValueError('Logic NOT operation not available with {0} operand'.format(variable))
     return not variable
 
 
