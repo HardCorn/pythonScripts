@@ -171,17 +171,15 @@ def read_model_data(file_path, row_map, delim=';'):
     raise StopIteration         # Файл закончился
 
     
-def remap_str(str_, attr_list, file_map, defaults):
+def remap_str(str_, attr_list, file_map, defaults):     # Приводим строку данных к формату файла,
     res_str = list(defaults)
     for num in range(len(attr_list)):
         each = attr_list[num]
-        if each not in file_map:
-            raise ValueError('Error mapping string: attribute \'{}\' not found'.format(each))
         res_str[file_map[each] - 1] = str_[num]
     return res_str
 
 
-def remap_list(list_str, attr_list, file_map, defaults):
+def remap_list(list_str, attr_list, file_map, defaults):    # Приводим данные к формату файла
     for num in range(len(list_str)):
         list_str[num] = remap_str(list_str[num], attr_list, file_map, defaults)
     
@@ -234,9 +232,6 @@ class ModelFileWorker:
         else:
             self.model_meta = model_meta
         self.model_meta[DATA_PATH] = data_path
-        
-    def _get_attr_dict(self, model_name):
-        res_dict = self.model_meta[model_name][ATTRIBUTE_KEY]
 
     def _write_header(self, name):
         if name not in self.model_meta:
@@ -266,12 +261,6 @@ class ModelFileWorker:
             self.model_meta[name] = dict()
         self.model_meta[name]= header
         self._write_header(name)                    # и пишем в файл
-
-    def _modify_header(self, name, **kwargs):            # подменяет кастомные свойства заголовка модели
-        if name not in self.model_meta:                  # если модели нет - шлем лесом
-            raise ValueError('{0} not found in model metadata'.format(name))
-        for each in kwargs:
-            self.model_meta[name][each] = kwargs[each]  # ни в коем случае ничего не пишем, после этого обязательно обновлять модель полностью
 
     def _get_part_name(self, str_, model_name, delim):
         """returns partition name for the PARTITION_FILES_KEY dictionary"""
@@ -335,7 +324,7 @@ class ModelFileWorker:
     def _get_first_n_attrs(self, attr_dict, n=1):
         return list(attr_dict[each + 1][ATTRIBUTE_NAME_KEY] for each in range(n))
 
-    def _check_attr_list(self, model_name, list_str, attr_list, row_map, attr_dict, defaults, file_map):
+    def _check_attr_list(self, model_name, list_str, attr_list, row_map, attr_dict, file_map):
         sample_str = list_str[0]
         if attr_list is None:
             if len(sample_str) == len(row_map):
@@ -386,7 +375,7 @@ class ModelFileWorker:
         # defaults = list(attr_dict[each + 1][OPTION_DEFAULT_KEY] for each in range(len(attr_dict)))
         defaults = self._get_default_values(name)
         file_map = self.get_file_map(name, header_validation=False)
-        no_remap = self._check_attr_list(name, list_str, attr_list, row_map, attr_dict, defaults, file_map)
+        no_remap = self._check_attr_list(name, list_str, attr_list, row_map, attr_dict, file_map)
         if not no_remap:
             if attr_list is None:
                 attr_list = self._get_first_n_attrs(attr_dict, len(list_str[0]))
@@ -626,14 +615,11 @@ class ModelFileWorker:
     def _get_sel_attrs(self, str_, file_map, new_map=None):         # функция для реализации выборки конкретных атрибутов из строки в нужном порядке
         if new_map is None:                                         # если не передали список с атрибутами - возвращаем строку
             return str_
-        # result_map = list()
         res_str = list()    
         for each in new_map:
             if each not in file_map:                                # если в списке атрибутов есть "лишний" - падаем
                 raise ValueError('Error selecting: Unknown attribute {0}'.format(str(each)))
             res_str.append(str_[file_map[each] - 1])                # если все ок, добавляем индекс атрибута в результирующий список
-        # for each in result_map:
-        #     res_str.append(str_[each - 1])                          # собираем по индексам 
         return res_str
 
     def delete_attribute(self, model_name, attr_name, new_key_attr=None):           # удаление атрибута модели
@@ -682,7 +668,7 @@ class ModelFileWorker:
         except Exception:
             pass    # игнорируя все ошибки
         if name in self.model_meta:     # и падаем если нам это удается
-            raise ValueError('Model called \'{0}\' already exists: {1}'.format(name, str(self.model_meta[name])))
+            raise ValueError('Model called \'{0}\' already exist: {1}'.format(name, str(self.model_meta[name])))
         header = dict()
         header[ATTRIBUTE_KEY] = dict()
         header[PARTITION_FILES_KEY] = dict()
@@ -778,6 +764,27 @@ class ModelFileWorker:
         self._read_header(model_name)
         return self.model_meta[model_name]
 
+    def modify_attribute(self, model_name, modif_type, attr_name, **kwargs):
+        """Типы модификаци: add, remove, rename
+        """
+        if modif_type == 'add':
+            if ATTRIBYTE_TYPE_KEY not in kwargs:
+                raise ValueError('Error modify attribute: required parameter {} not found'.format(ATTRIBYTE_TYPE_KEY))
+            self.add_attribute(model_name, attr_name, attribute_type=kwargs[ATTRIBYTE_TYPE_KEY], **kwargs)
+        elif modif_type == 'rename':
+            if 'new_name' not in kwargs:
+                raise ValueError('Error modify attribute: required parameter {} not found'.format('new_name'))
+            self.rename_attribute(model_name, attr_name, kwargs['new_name'])
+        elif modif_type == 'remove':
+            if 'new_key_attr' in kwargs:
+                new_key = kwargs['new_key_attr']
+            else:
+                new_key = None
+            self.delete_attribute(model_name, attr_name, new_key)
+        else:
+            raise ValueError('Unknown modification type {}'.format(modif_type))
+
+
     def modify_partition(self, model_name, modif_type, attr_name, attr_fmt=None):   # модифицирует словарь партиций вынести эту функцию в fileworker'a в модель
         if modif_type not in ('add', 'remove', 'reformat'):                         # неизвестные типы модификаций
             raise ValueError('Error modifying partitioning for {0}: unknown modification type \'{1}\''.format(
@@ -825,13 +832,11 @@ class ModelFileWorker:
                 header[PARTITION_ATTRIBUTE_KEY][mod_part] = header[PARTITION_ATTRIBUTE_KEY][max_part]
                 del header[PARTITION_ATTRIBUTE_KEY][max_part]
         header[PARTITION_FILES_KEY] = dict()                # сносим невалидный словарь файлов модели
-        # new_map = self.get_file_map(model_name, header, no_read_header=True)      # получаем словарь новых атрибутов (зачем?!)
-        # data = self.read_model_data(model_name, selected=new_map)                   
         data = self.read_model_data(model_name)                                     # читаем файлы модели
         self.replace_model_files(model_name, data, header)                          # переписываем файлы используя прочтенные данные
 
 
-if __name__ == '__main__':
+if __name__ == '__main__' and 1 == 0:
     pass
     # meta = {DATA_PATH: 'D:\\Users\\HardCorn\\Desktop\\python\\pyCharm\\myScripts\\Buh\\testing_data\\'}
     # meta = {'s': {
@@ -879,5 +884,3 @@ if __name__ == '__main__':
     # c = str_to_datetime('2017-08-05 04:12:33.000055')
     # print(get_date_postfix('2017-08-05 04:12:33.000055', date_fmt=DATETIME_DEFAULT_FMT))
     # print(get_model_data_ name('n', DEFAULT_SINGLE_PARTITION_VAL))
-
-    # 'default'
