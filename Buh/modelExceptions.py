@@ -3,7 +3,7 @@ class BaseModelException(BaseException):
         self.args = args
 
     def __str__(self):
-        return ':'.join(self.args)
+        return ': '.join(self.args)
 
 
 class ModelFileException(BaseModelException):
