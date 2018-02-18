@@ -1,6 +1,7 @@
 import os
 import datetime as dt
 import json as js
+import modelExceptions as er
 
 """
     Данные в моделях лежат в текстовых файлах с разделителями и разрешение .data
@@ -17,6 +18,7 @@ import json as js
 """
 
 #### Константы ####
+DEBUG = False
 DATE_DEFAULT_FMT = 'YYYY-MM-DD'                         # формат по-умолчанию для типа дата
 DATETIME_DEFAULT_FMT = 'YYYY-MM-DD HH:MI:SS.SSSSSS'      # формат по-умолчанию для типа дата-время
 DAILY_PARTITION_FMT = 'YYYYMMDD'                        # формат дат для ежедневных партиций
@@ -97,7 +99,7 @@ def datetime_to_str(date, fmt=DATETIME_DEFAULT_FMT):
     if type(date) == str and date == ACTUALITY_DTTM_VALUE:  # проставляем current_timestamp
         date = dt.datetime.now()
     if type(date) != dt.datetime:
-        raise BaseException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
+        raise er.UtilityException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
     return dt.datetime.strftime(date, refmt(fmt))
 
 
@@ -105,7 +107,7 @@ def date_to_str(date, fmt=DATE_DEFAULT_FMT):
     if type(date) == str and date == ACTUALITY_DATE_VALUE:  # проставляем current_date
         date = dt.datetime.now().date()
     if type(date) != dt.date:
-        raise BaseException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
+        raise er.UtilityException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
     return dt.date.strftime(date, refmt(fmt))
 
 
@@ -125,9 +127,9 @@ def get_date_postfix(date=None, postfix_fmt=MONTH_PARTITION_FMT, date_fmt=DATE_D
         try:
             cur_date = str_to_datetime(date, date_fmt)
         except Exception:
-            raise ValueError('Can\'t get date from {0} using format {1}'.format(str(date), str(date_fmt)))
+            raise er.UtilityException('Can\'t get date from {0} using format {1}'.format(str(date), str(date_fmt)))
     else:
-        raise ValueError('Can\'t get postfix using date={0}, fmt={1}'.format(str(date), str(date_fmt)))
+        raise er.UtilityException('Can\'t get postfix using date={0}, fmt={1}'.format(str(date), str(date_fmt)))
     if type(cur_date) == date:
         return date_to_str(cur_date, postfix_fmt)
     else:
@@ -141,12 +143,12 @@ def read_model_data(file_path, row_map, delim=';'):
     with open(file_path, 'r') as f:
         for row in f:
             if not row_map:     # подразумевается что row_map передается извне
-                raise BaseException('You can\'t read model data files without it\'s metadata')
+                raise er.ModelReadError('You can\'t read model data files without it\'s metadata')
             else:
                 res_row = list()
                 tmp_row = row.strip(' \t\n').split(delim)
                 if len(tmp_row) > len(row_map):     # row_map не синхронизован со строкой - норма, переписать если короче - нет добавленных атрибутов
-                    raise BaseException('Incorrect row \'{0}\' in file {1} (map: {2})'.format(row, file_path, str(row_map)))
+                    raise er.ModelReadError('Incorrect row \'{0}\' in file {1} (map: {2})'.format(row, file_path, str(row_map)))
                 for num in range(len(tmp_row)):     # пытаемся привести все элементы к типам в соотв с row_map
                     if tmp_row[num] == '':
                         tmp = None
@@ -161,7 +163,7 @@ def read_model_data(file_path, row_map, delim=';'):
                     elif row_map[num] == FLOAT_VALUE:
                         tmp = float(dequoting(tmp_row[num]))
                     else:       # неизвестный тип данных, поддерживаются только целые числа, даты и строки
-                        raise BaseException('Incorrect row map: {}'.format(row_map))
+                        raise er.ModelReadError('Incorrect row map: {}'.format(row_map))
                     res_row.append(tmp)
                 diff = len(row_map) - len(tmp_row)  # атрибуты которые есть в метаданных и отсутствуют в строке
                 if diff > 0:                        # если они есть
@@ -235,7 +237,7 @@ class ModelFileWorker:
 
     def _write_header(self, name):
         if name not in self.model_meta:
-            raise ValueError('Model {0} not found in dictionary'.format(name))
+            raise er.ModelWriteError('Model {0} not found in dictionary'.format(name))
         model_dict = self.model_meta[name]
         path = self.model_meta[DATA_PATH] + name + HEADER_EXTENSION
         with open(path, 'w') as f:
@@ -332,12 +334,12 @@ class ModelFileWorker:
             else:
                 return False
         if len(attr_list) != len(sample_str):
-            raise ValueError('Error writing data: desync metadata: expected {0} attributes, but {1} attributes found'.format(
+            raise er.ModelWriteError('Error writing data: desync metadata: expected {0} attributes, but {1} attributes found'.format(
                 len(attr_list), len(sample_str)
             ))
         for each in attr_list:
             if each not in file_map:
-                raise ValueError('Error writing data: attribute \'{0}\' not found in model \'{1}\''.format(
+                raise er.ModelWriteError('Error writing data: attribute \'{0}\' not found in model \'{1}\''.format(
                     each, model_name
                 ))
         for num in range(len(attr_dict)):
@@ -363,16 +365,15 @@ class ModelFileWorker:
     def write_model_data(self, name: str, list_str: list, attr_list=None, brutal=False):
         """Procedure writes model to data files (and do nothing with it's header)"""
         if len(list_str) == 0:
-            raise ValueError('Error writing data: there are no data to write')
+            raise er.ModelWriteError('Error writing data: there are no data to write')
         if name not in self.model_meta:             # если к модели еще не обращались - пытаемся прочесть заголовок из файла
             try:
                 self._read_header(name)
             except Exception:
-                raise BaseException('Can\'t write data without it\'s header')
+                raise er.ModelWriteError('Can\'t write data without it\'s header')
         row_map = self._get_row_map(name)           # получаем карту строки
         delim = self.model_meta[name][FILE_DELIMITER_KEY]
         attr_dict = self.model_meta[name][ATTRIBUTE_KEY]
-        # defaults = list(attr_dict[each + 1][OPTION_DEFAULT_KEY] for each in range(len(attr_dict)))
         defaults = self._get_default_values(name)
         file_map = self.get_file_map(name, header_validation=False)
         no_remap = self._check_attr_list(name, list_str, attr_list, row_map, attr_dict, file_map)
@@ -475,7 +476,7 @@ class ModelFileWorker:
         if read_header:
             self._read_header(name)
         if name not in self.model_meta:
-            raise BaseException('Can\'t read model data without it\'s header!')
+            raise er.ModelReadError('Can\'t read model data without it\'s header!')
         part_list = list()
         if partitions_ is None:         # по умолчанию просто лезем во все партиции модели
             for each in self.model_meta[name][PARTITION_FILES_KEY]:
@@ -485,14 +486,14 @@ class ModelFileWorker:
                 if each in self.model_meta[name][PARTITION_FILES_KEY]:
                     part_list.append(each)
                 elif not ignor_err_partitions:      # если не выставлен флаг игнорирования кривых партиций и такой партиции нет - падаем
-                    raise ValueError('Wrong Partition name \'{0}\' for model \'{1}\''.format(each, name))
+                    raise er.ModelReadError('Wrong Partition name \'{0}\' for model \'{1}\''.format(each, name))
         elif type(partitions_) == str:              # если передали строку - считаем что это имя партиции
             if partitions_ in self.model_meta[name][PARTITION_FILES_KEY]:
                 part_list.append(partitions_)
             elif not ignor_err_partitions:          # опять падаем если она кривая и нет флага
-                raise ValueError('Wrong Partition name \'{0}\' for model \'{1}\''.format(partitions_, name))
+                raise er.ModelReadError('Wrong Partition name \'{0}\' for model \'{1}\''.format(partitions_, name))
         else:
-            raise ValueError('Unknown format for partitions_ parameter: only lists, tuples and strings supported')
+            raise er.ModelReadError('Unknown format for partitions_ parameter: only lists, tuples and strings supported')
         result = list()
         file_map = self.get_file_map(name, no_read_header=True)
         for each in part_list:                      # читаем все найденные партиции, если их нет - вернем пустой список
@@ -513,48 +514,48 @@ class ModelFileWorker:
                     try:
                         self._read_header(name)
                     except FileNotFoundError:   # если ни то ни другое не выходит - падаем
-                        raise ValueError('Header validation: Unknown model \'{}\''.format(name))
+                        raise er.DataValidationError('Header validation: Unknown model \'{}\''.format(name))
                 else:
-                    raise ValueError('Header validation: Unknown model \'{}\''.format(name))
+                    raise er.DataValidationError('Header validation: Unknown model \'{}\''.format(name))
             header = self.model_meta[name]
         if validation_mode: # начинаем проверку
             if type(header) != dict:    # заголовок должен быть словарем
-                raise TypeError('Header validation: You\'re header is not a dictionary!')
+                raise er.DataValidationError('Header validation: You\'re header is not a dictionary!')
             if (ATTRIBUTE_KEY not in header or PK_ATTRIBUTE_KEY not in header or OPTIONS_KEY not in header\
                     or PARTITION_FILES_KEY not in header or PARTITION_ATTRIBUTE_KEY not in header\
                     or FILE_DELIMITER_KEY not in header):   # проверяем присутствие основных ключей заголовка
-                raise KeyError('Header validation: One or more critical parameters not found in header')
+                raise er.DataValidationError('Header validation: One or more critical parameters not found in header')
             if OPTION_LOAD_KEY not in header[OPTIONS_KEY] \
                 or header[OPTIONS_KEY][OPTION_LOAD_KEY] not in (APPEND_MODE, REPLACE_MODE): # проверяем режим загрузки модели
-                raise KeyError('Header validation: Correct model loading type not set for the model')
+                raise er.DataValidationError('Header validation: Correct model loading type not set for the model')
             if type(header[ATTRIBUTE_KEY]) != dict or type(header[PARTITION_FILES_KEY]) != dict\
                     or type(header[PARTITION_ATTRIBUTE_KEY]) != dict or type(header[PK_ATTRIBUTE_KEY]) != int\
                     or type(header[FILE_DELIMITER_KEY]) != str: # проверяем типы основных ключей заголовка
-                raise TypeError('Header validation: One or more critical parameter types are incorrect in header')
+                raise er.DataValidationError('Header validation: One or more critical parameter types are incorrect in header')
             for each in header[ATTRIBUTE_KEY]:  # Проверяем словарь атрибутов
                 if type(each) != int:           # ключ обязательно int
                     raise TypeError('Header validation: One or more key in attributes dictionary has not supported type ({})'.format(type(each)))
                 if type(header[ATTRIBUTE_KEY][each]) != dict:   # соблюдение иерархии
-                    raise TypeError('Header validation: One or more critical parameter types are incorect in attributes dictionary')
+                    raise er.DataValidationError('Header validation: One or more critical parameter types are incorect in attributes dictionary')
                 if ATTRIBUTE_NAME_KEY not in header[ATTRIBUTE_KEY][each] or OPTION_HIDE_KEY not in header[ATTRIBUTE_KEY][each]\
                         or OPTION_DEFAULT_KEY not in header[ATTRIBUTE_KEY][each]\
                         or ATTRIBYTE_TYPE_KEY not in header[ATTRIBUTE_KEY][each]:   # проверяем присутствие основных параметров атрибута
-                    raise KeyError('Header validation: One or more critical parameters not found in attributes dictionary')
+                    raise er.DataValidationError('Header validation: One or more critical parameters not found in attributes dictionary')
                 if header[ATTRIBUTE_KEY][each][ATTRIBYTE_TYPE_KEY] not in DATA_TYPES_LIST:  # проверяем типы атрибутов
-                    raise ValueError('Header validation: Attribute \'{0}\' has incorrect type \'{1}\''.format(
+                    raise er.DataValidationError('Header validation: Attribute \'{0}\' has incorrect type \'{1}\''.format(
                         header[ATTRIBUTE_KEY][each][ATTRIBUTE_NAME_KEY], header[ATTRIBUTE_KEY][each][ATTRIBYTE_TYPE_KEY]
                     ))
             for each in header[PARTITION_ATTRIBUTE_KEY]:    # теперь словарь партиций
                 if type(each) != int:           # ключ обязательно int
-                    raise TypeError('Header validation: One or more key in partition dictionary has not supported type ({})'.format(type(each)))
+                    raise er.DataValidationError('Header validation: One or more key in partition dictionary has not supported type ({})'.format(type(each)))
                 if type(header[PARTITION_ATTRIBUTE_KEY][each]) != dict: # тоже иерархическая структура
-                    raise TypeError('Header validation: One or more critical parameter types are incorect in partition dictionary')
+                    raise er.DataValidationError('Header validation: One or more critical parameter types are incorect in partition dictionary')
                 if PARTITION_FIELD_NUM not in header[PARTITION_ATTRIBUTE_KEY][each]\
                         or PARTITION_FIELD_FORMAT not in header[PARTITION_ATTRIBUTE_KEY][each]: # ключевые параметры
-                    raise KeyError('Header validation: One or more critical parameters not found in partition dictionary')
+                    raise er.DataValidationError('Header validation: One or more critical parameters not found in partition dictionary')
             for each in header[PARTITION_FILES_KEY]:    # словарь файлов данных
                 if type(each) != str or type(header[PARTITION_FILES_KEY][each]) != str: # все параметры обязательно строковые
-                    raise TypeError('Header validation: On or more parameters has incorrect data type in partition files dictionary')
+                    raise er.DataValidationError('Header validation: On or more parameters has incorrect data type in partition files dictionary')
         return header   # возвращаем корректный заголовок
 
     def _get_atr_num(self, name, atr, header=None):
@@ -576,10 +577,10 @@ class ModelFileWorker:
     def add_attribute(self, model_name, attribute_name, attribute_type, **kwargs):
         header = self._validate_header(model_name)
         if attribute_type not in DATA_TYPES_LIST:   # проверяем валидность типа
-            raise ValueError('Unknown data type \'{0}\' for attribute {1}'.format(attribute_type, attribute_name))
+            raise er.ModelModifyError('Unknown data type \'{0}\' for attribute {1}'.format(attribute_type, attribute_name))
         for each in header[ATTRIBUTE_KEY]:          # проверяем модель на существование добавляемого атрибута
             if header[ATTRIBUTE_KEY][each][ATTRIBUTE_NAME_KEY] == attribute_name:
-                raise ValueError('{0} already exist in model {1}'.format(attribute_name, model_name))
+                raise er.ModelModifyError('{0} already exist in model {1}'.format(attribute_name, model_name))
         num = len(header[ATTRIBUTE_KEY]) + 1        # номер нового атрибута
         header[ATTRIBUTE_KEY][num] = dict()         # дописываем в заголовок новый атрибут
         header[ATTRIBUTE_KEY][num][ATTRIBUTE_NAME_KEY] = attribute_name
@@ -605,9 +606,9 @@ class ModelFileWorker:
         num = self._get_atr_num(model_name, old_name, header)       # ищем старое имя атрибута
         num_new = self._get_atr_num(model_name, new_name, header)   # ищем новое имя
         if num == -1:                                               # если не нашли старое - падаем
-            raise ValueError('Error renaming attributes: model {0} hasn\'t attribute {1}'.format(model_name, old_name))
+            raise er.ModelModifyError('Error renaming attributes: model {0} hasn\'t attribute {1}'.format(model_name, old_name))
         elif num_new != -1:                                         # если нашли новое - падаем
-            raise ValueError('Error renaming attributes: model {0} already has attribute {1}'.format(model_name, new_name))
+            raise er.ModelModifyError('Error renaming attributes: model {0} already has attribute {1}'.format(model_name, new_name))
         header[ATTRIBUTE_KEY][num][ATTRIBUTE_NAME_KEY] = new_name   # меняем имя в заголовке
         self._validate_header(model_name, header, validation_mode=True, no_read=True) # проверяем заголовок
         self._change_header(model_name, header)                     # подменяем заголовок
@@ -618,7 +619,7 @@ class ModelFileWorker:
         res_str = list()    
         for each in new_map:
             if each not in file_map:                                # если в списке атрибутов есть "лишний" - падаем
-                raise ValueError('Error selecting: Unknown attribute {0}'.format(str(each)))
+                raise er.ModelReadError('Error selecting: Unknown attribute {0}'.format(str(each)))
             res_str.append(str_[file_map[each] - 1])                # если все ок, добавляем индекс атрибута в результирующий список
         return res_str
 
@@ -630,13 +631,13 @@ class ModelFileWorker:
             new_key = self._get_atr_num(model_name, new_key_attr, header)
         part_level = -1
         if num == -1:                                                               # падаем на удалении несуществующего
-            raise ValueError('Error deleting attributes: model {0} hasn\'t attribute {1}'.format(model_name, attr_name))
+            raise er.ModelModifyError('Error deleting attributes: model {0} hasn\'t attribute {1}'.format(model_name, attr_name))
         for each in header[PARTITION_ATTRIBUTE_KEY]:                                # обрабатываем возможное вхождение в партиции
             if header[PARTITION_ATTRIBUTE_KEY][each][PARTITION_FIELD_NUM] == num:
                 part_level = each
         if header[PK_ATTRIBUTE_KEY] == num:
             if new_key == -1:                                                       # если действительно удаляем ключ, а нового нет - падаем
-                raise ValueError('Error deleting attributes: delete key attribute with no new key attribute selected')
+                raise er.ModelModifyError('Error deleting attributes: delete key attribute with no new key attribute selected')
             header[PK_ATTRIBUTE_KEY] = new_key
         if part_level != -1:                                                        # обрабатываем удаление атрибута партицирования
             max_lvl = len(header[PARTITION_ATTRIBUTE_KEY])
@@ -668,7 +669,7 @@ class ModelFileWorker:
         except Exception:
             pass    # игнорируя все ошибки
         if name in self.model_meta:     # и падаем если нам это удается
-            raise ValueError('Model called \'{0}\' already exist: {1}'.format(name, str(self.model_meta[name])))
+            raise er.ModelFileException('Model called \'{0}\' already exist: {1}'.format(name, str(self.model_meta[name])))
         header = dict()
         header[ATTRIBUTE_KEY] = dict()
         header[PARTITION_FILES_KEY] = dict()
@@ -676,7 +677,7 @@ class ModelFileWorker:
         pk_idx = -1 # индекс ключевого атрибута
         for each in attrs:
             if attrs[each] is None:
-                raise ValueError('Attribute name cannot be None!')
+                raise er.ModelFileException('Error model creating', 'Attribute name cannot be None!')
             header[ATTRIBUTE_KEY][iter] = dict()
             header[ATTRIBUTE_KEY][iter][ATTRIBUTE_NAME_KEY] = each
             header[ATTRIBUTE_KEY][iter][ATTRIBYTE_TYPE_KEY] = attrs[each]
@@ -684,7 +685,7 @@ class ModelFileWorker:
                 pk_idx = iter   # если находим ключ сохраняем его индекс
             iter += 1
         if pk_idx == -1:    # если не нашли - падаем
-            raise KeyError('You Can\'t create model without key: there are no attribute '
+            raise er.ModelFileException('You Can\'t create model without key: there are no attribute '
                            'called \'{0}\' in {1}'.format(key, str(attrs)))
         header[PK_ATTRIBUTE_KEY] = pk_idx
         parts = dict()  # словарь для данных о партицировании
@@ -695,7 +696,7 @@ class ModelFileWorker:
                 header[PARTITION_ATTRIBUTE_KEY][iter] = dict()
                 num = self._get_atr_num(name, each, header)
                 if num == -1:   # падаем если не нашли атрибута с переданным именем
-                    raise KeyError('Error model creating: There are no {0} attribute, can\'t create partition'.format(each))
+                    raise er.ModelFileException('Error model creating: There are no {0} attribute, can\'t create partition'.format(each))
                 header[PARTITION_ATTRIBUTE_KEY][iter][PARTITION_FIELD_NUM] = num
                 header[PARTITION_ATTRIBUTE_KEY][iter][PARTITION_FIELD_FORMAT] = partition[each]
                 iter += 1
@@ -716,18 +717,18 @@ class ModelFileWorker:
                 hide = list(hide)
                 hide.append(ACTUALITY_FIELD_NAME)
             else:
-                raise ValueError('Error model creation: Unknown type for \'hide\' parameter! Use list or string!')
+                raise er.ModelFileException('Error model creation: Unknown type for \'hide\' parameter! Use list or string!')
             if defaults is None:                                                    # выставляем значение по-умолчанию
                 defaults = dict()
             defaults[ACTUALITY_FIELD_NAME] = ACTUALITY_DTTM_VALUE
         elif load_mode == REPLACE_MODE:                                             # метод полной перезаписи модели
             header[OPTIONS_KEY][OPTION_LOAD_KEY] = REPLACE_MODE
         else:                                                                       # других пока не предусмотрено
-            raise ValueError('Error model creation: Loading mode could be only {0} or {1}'.format(APPEND_MODE, REPLACE_MODE))
+            raise er.ModelFileException('Error model creation: Loading mode could be only {0} or {1}'.format(APPEND_MODE, REPLACE_MODE))
         if type(hide) not in (list, str, type(None)):
-            raise ValueError('Error model creation: Unknown type for \'hide\' parameter! Use list or string!')
+            raise er.ModelFileException('Error model creation: Unknown type for \'hide\' parameter! Use list or string!')
         if type(defaults) not in (dict, type(None)):
-            raise ValueError('Error model creation: Unknown type for \'default\' parameter! Use dictionary!')
+            raise er.ModelFileException('Error model creation: Unknown type for \'default\' parameter! Use dictionary!')
         for each in header[ATTRIBUTE_KEY]:                                          # проставим опции атрибутов для представлений
             attr_name = header[ATTRIBUTE_KEY][each][ATTRIBUTE_NAME_KEY]
             attr_type = header[ATTRIBUTE_KEY][each][ATTRIBYTE_TYPE_KEY]
@@ -769,11 +770,11 @@ class ModelFileWorker:
         """
         if modif_type == 'add':
             if ATTRIBYTE_TYPE_KEY not in kwargs:
-                raise ValueError('Error modify attribute: required parameter {} not found'.format(ATTRIBYTE_TYPE_KEY))
+                raise er.ModelModifyError('Error modify attribute: required parameter {} not found'.format(ATTRIBYTE_TYPE_KEY))
             self.add_attribute(model_name, attr_name, attribute_type=kwargs[ATTRIBYTE_TYPE_KEY], **kwargs)
         elif modif_type == 'rename':
             if 'new_name' not in kwargs:
-                raise ValueError('Error modify attribute: required parameter {} not found'.format('new_name'))
+                raise er.ModelModifyError('Error modify attribute: required parameter {} not found'.format('new_name'))
             self.rename_attribute(model_name, attr_name, kwargs['new_name'])
         elif modif_type == 'remove':
             if 'new_key_attr' in kwargs:
@@ -787,13 +788,13 @@ class ModelFileWorker:
 
     def modify_partition(self, model_name, modif_type, attr_name, attr_fmt=None):   # модифицирует словарь партиций вынести эту функцию в fileworker'a в модель
         if modif_type not in ('add', 'remove', 'reformat'):                         # неизвестные типы модификаций
-            raise ValueError('Error modifying partitioning for {0}: unknown modification type \'{1}\''.format(
+            raise er.ModelModifyError('Error modifying partitioning for {0}: unknown modification type \'{1}\''.format(
                 model_name, modif_type
             ))
         header = self._validate_header(model_name, validation_mode=False)           # читаем заголовок
         num = self._get_atr_num(model_name, attr_name, header)
         if num == -1:                                                               # атрибут отсутствует в модели
-            raise ValueError('Error modifying partitioning for {0}: Unknown attribute \'{1}\''.format(
+            raise er.ModelModifyError('Error modifying partitioning for {0}: Unknown attribute \'{1}\''.format(
                 model_name, attr_name
             ))
         attr_type = header[ATTRIBUTE_KEY][num][ATTRIBYTE_TYPE_KEY]                  # сохраняем тип атрибута
@@ -801,13 +802,13 @@ class ModelFileWorker:
             try:
                 datetime_to_str(dt.datetime.now(), attr_fmt)
             except Exception:
-                raise ValueError('Error modifying partitioning for {0}: Incorrect format {1} for date or datetime'.format(
+                raise er.ModelModifyError('Error modifying partitioning for {0}: Incorrect format {1} for date or datetime'.format(
                     model_name, attr_fmt
                 ))
         if modif_type == 'add':                                                     # добавление
             for each in header[PARTITION_ATTRIBUTE_KEY]:
                 if header[PARTITION_ATTRIBUTE_KEY][each][PARTITION_FIELD_NUM] == num:   # проверка на то что партицирование по этому атрибуту уже есть
-                    raise KeyError('Error modifying partitioning for {0}: model already partitioned by {1}'.format(
+                    raise er.ModelModifyError('Error modifying partitioning for {0}: model already partitioned by {1}'.format(
                         model_name, attr_name
                     ))
             new_part = len(header[PARTITION_ATTRIBUTE_KEY]) + 1                     # добавляем новый уровень в словарь партиций
@@ -820,7 +821,7 @@ class ModelFileWorker:
                 if header[PARTITION_ATTRIBUTE_KEY][each][PARTITION_FIELD_NUM] == num:
                     mod_part = each
             if mod_part == -1:                                                      # если его нет - падаем
-                raise KeyError('Error modifying partitioning for {0}: model don\'t partitioned by {1}'.format(
+                raise er.ModelModifyError('Error modifying partitioning for {0}: model don\'t partitioned by {1}'.format(
                     model_name, attr_name
                 ))
             if modif_type == 'reformat':                                            # если цель - смена формата - меняем значение соотв. ключа в словаре
@@ -836,7 +837,7 @@ class ModelFileWorker:
         self.replace_model_files(model_name, data, header)                          # переписываем файлы используя прочтенные данные
 
 
-if __name__ == '__main__' and 1 == 0:
+if __name__ == '__main__' and DEBUG:
     pass
     # meta = {DATA_PATH: 'D:\\Users\\HardCorn\\Desktop\\python\\pyCharm\\myScripts\\Buh\\testing_data\\'}
     # meta = {'s': {
@@ -871,7 +872,7 @@ if __name__ == '__main__' and 1 == 0:
     a.delete_attribute('New_model', 'info_field2')
     a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000,11,10,5,30), None, ACTUALITY_DTTM_VALUE, 3.5])
     a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000, 11, 10, 5, 30), dt.date(2018, 4, 1), ACTUALITY_DTTM_VALUE, 321365654438433452456475864674.5123456789])
-    a.insert_simple_data('New_model', ['k6', dt.date(2017,5,14)], ['key_field', 'date_field'])
+    a.insert_simple_data('New_model', ['k6', dt.date(2017,5,14)], ['key_field', 'date_field', 'lll'])
     a.modify_partition('New_model', 'remove', 'date_field')
     a.modify_partition('New_model', 'add', 'date_field', 'YYYYMMDD')
     a.modify_partition('New_model', 'reformat', 'date_field','YYYYMM')

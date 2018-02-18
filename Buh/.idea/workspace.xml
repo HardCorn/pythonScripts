@@ -14,8 +14,8 @@
       <file leaf-file-name="modelFile.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/modelFile.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="244">
-              <caret line="844" column="31" lean-forward="true" selection-start-line="844" selection-start-column="31" selection-end-line="844" selection-end-column="31" />
+            <state relative-caret-position="363">
+              <caret line="848" column="100" lean-forward="true" selection-start-line="848" selection-start-column="100" selection-end-line="848" selection-end-column="100" />
               <folding>
                 <element signature="e#0#9#0" expanded="true" />
               </folding>
@@ -23,12 +23,31 @@
           </provider>
         </entry>
       </file>
+      <file leaf-file-name="modelExceptions.py" pinned="false" current-in-tab="false">
+        <entry file="file://$PROJECT_DIR$/modelExceptions.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="357">
+              <caret line="21" column="8" lean-forward="false" selection-start-line="21" selection-start-column="8" selection-end-line="21" selection-end-column="8" />
+              <folding />
+            </state>
+          </provider>
+        </entry>
+      </file>
     </leaf>
+  </component>
+  <component name="FileTemplateManagerImpl">
+    <option name="RECENT_TEMPLATES">
+      <list>
+        <option value="Python Script" />
+      </list>
+    </option>
   </component>
   <component name="IdeDocumentHistory">
     <option name="CHANGED_PATHS">
       <list>
         <option value="$PROJECT_DIR$/model.py" />
+        <option value="$PROJECT_DIR$/modelExceptions.py" />
+        <option value="$PROJECT_DIR$/modelFile.py" />
       </list>
     </option>
   </component>
@@ -92,7 +111,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.model">
+  <component name="RunManager" selected="Python.modelExceptions">
     <configuration name="model" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -110,9 +129,50 @@
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
     </configuration>
+    <configuration name="modelExceptions" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="Buh" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modelExceptions.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+    </configuration>
+    <configuration name="modelFile" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="Buh" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/modelFile.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+    </configuration>
+    <list size="3">
+      <item index="0" class="java.lang.String" itemvalue="Python.model" />
+      <item index="1" class="java.lang.String" itemvalue="Python.modelExceptions" />
+      <item index="2" class="java.lang.String" itemvalue="Python.modelFile" />
+    </list>
     <recent_temporary>
-      <list size="1">
-        <item index="0" class="java.lang.String" itemvalue="Python.model" />
+      <list size="3">
+        <item index="0" class="java.lang.String" itemvalue="Python.modelExceptions" />
+        <item index="1" class="java.lang.String" itemvalue="Python.modelFile" />
+        <item index="2" class="java.lang.String" itemvalue="Python.model" />
       </list>
     </recent_temporary>
   </component>
@@ -251,10 +311,18 @@
         </state>
       </provider>
     </entry>
+    <entry file="file://$PROJECT_DIR$/modelExceptions.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="357">
+          <caret line="21" column="8" lean-forward="false" selection-start-line="21" selection-start-column="8" selection-end-line="21" selection-end-column="8" />
+          <folding />
+        </state>
+      </provider>
+    </entry>
     <entry file="file://$PROJECT_DIR$/modelFile.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="244">
-          <caret line="844" column="31" lean-forward="true" selection-start-line="844" selection-start-column="31" selection-end-line="844" selection-end-column="31" />
+        <state relative-caret-position="363">
+          <caret line="848" column="100" lean-forward="true" selection-start-line="848" selection-start-column="100" selection-end-line="848" selection-end-column="100" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
           </folding>
