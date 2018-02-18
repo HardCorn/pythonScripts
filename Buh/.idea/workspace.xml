@@ -33,14 +33,24 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="modelUtility.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="modelUtility.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/modelUtility.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="431">
-              <caret line="164" column="0" lean-forward="true" selection-start-line="164" selection-start-column="0" selection-end-line="164" selection-end-column="0" />
+            <state relative-caret-position="958">
+              <caret line="155" column="48" lean-forward="true" selection-start-line="155" selection-start-column="48" selection-end-line="155" selection-end-column="48" />
               <folding>
                 <element signature="e#0#28#0" expanded="true" />
               </folding>
+            </state>
+          </provider>
+        </entry>
+      </file>
+      <file leaf-file-name="operations.py" pinned="false" current-in-tab="true">
+        <entry file="file://$PROJECT_DIR$/operations.py">
+          <provider selected="true" editor-type-id="text-editor">
+            <state relative-caret-position="312">
+              <caret line="147" column="24" lean-forward="true" selection-start-line="147" selection-start-column="24" selection-end-line="147" selection-end-column="24" />
+              <folding />
             </state>
           </provider>
         </entry>
@@ -60,6 +70,7 @@
         <option value="$PROJECT_DIR$/model.py" />
         <option value="$PROJECT_DIR$/modelFile.py" />
         <option value="$PROJECT_DIR$/modelExceptions.py" />
+        <option value="$PROJECT_DIR$/operations.py" />
         <option value="$PROJECT_DIR$/modelUtility.py" />
       </list>
     </option>
@@ -124,7 +135,7 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Python.modelUtility">
+  <component name="RunManager" selected="Python.operations">
     <configuration name="model" type="PythonConfigurationType" factoryName="Python" temporary="true">
       <option name="INTERPRETER_OPTIONS" value="" />
       <option name="PARENT_ENVS" value="true" />
@@ -193,18 +204,37 @@
       <option name="SHOW_COMMAND_LINE" value="false" />
       <option name="EMULATE_TERMINAL" value="false" />
     </configuration>
-    <list size="4">
+    <configuration name="operations" type="PythonConfigurationType" factoryName="Python" temporary="true">
+      <option name="INTERPRETER_OPTIONS" value="" />
+      <option name="PARENT_ENVS" value="true" />
+      <envs>
+        <env name="PYTHONUNBUFFERED" value="1" />
+      </envs>
+      <option name="SDK_HOME" value="" />
+      <option name="WORKING_DIRECTORY" value="$PROJECT_DIR$" />
+      <option name="IS_MODULE_SDK" value="true" />
+      <option name="ADD_CONTENT_ROOTS" value="true" />
+      <option name="ADD_SOURCE_ROOTS" value="true" />
+      <module name="Buh" />
+      <option name="SCRIPT_NAME" value="$PROJECT_DIR$/operations.py" />
+      <option name="PARAMETERS" value="" />
+      <option name="SHOW_COMMAND_LINE" value="false" />
+      <option name="EMULATE_TERMINAL" value="false" />
+    </configuration>
+    <list size="5">
       <item index="0" class="java.lang.String" itemvalue="Python.model" />
       <item index="1" class="java.lang.String" itemvalue="Python.modelExceptions" />
       <item index="2" class="java.lang.String" itemvalue="Python.modelFile" />
       <item index="3" class="java.lang.String" itemvalue="Python.modelUtility" />
+      <item index="4" class="java.lang.String" itemvalue="Python.operations" />
     </list>
     <recent_temporary>
-      <list size="4">
-        <item index="0" class="java.lang.String" itemvalue="Python.modelUtility" />
-        <item index="1" class="java.lang.String" itemvalue="Python.modelExceptions" />
-        <item index="2" class="java.lang.String" itemvalue="Python.modelFile" />
-        <item index="3" class="java.lang.String" itemvalue="Python.model" />
+      <list size="5">
+        <item index="0" class="java.lang.String" itemvalue="Python.operations" />
+        <item index="1" class="java.lang.String" itemvalue="Python.modelUtility" />
+        <item index="2" class="java.lang.String" itemvalue="Python.modelExceptions" />
+        <item index="3" class="java.lang.String" itemvalue="Python.modelFile" />
+        <item index="4" class="java.lang.String" itemvalue="Python.model" />
       </list>
     </recent_temporary>
   </component>
@@ -363,11 +393,19 @@
     </entry>
     <entry file="file://$PROJECT_DIR$/modelUtility.py">
       <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="431">
-          <caret line="164" column="0" lean-forward="true" selection-start-line="164" selection-start-column="0" selection-end-line="164" selection-end-column="0" />
+        <state relative-caret-position="958">
+          <caret line="155" column="48" lean-forward="true" selection-start-line="155" selection-start-column="48" selection-end-line="155" selection-end-column="48" />
           <folding>
             <element signature="e#0#28#0" expanded="true" />
           </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/operations.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="312">
+          <caret line="147" column="24" lean-forward="true" selection-start-line="147" selection-start-column="24" selection-end-line="147" selection-end-column="24" />
+          <folding />
         </state>
       </provider>
     </entry>

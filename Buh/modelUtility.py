@@ -1,6 +1,6 @@
 import modelExceptions as er
 import datetime as dt
-import re
+import operations
 
 
 DEBUG = False
@@ -86,6 +86,34 @@ class Expression:
     def evaluate(self):
         pass
 
+    def reset(self, map):
+        if isinstance(self.left, Expression):
+            self.left.reset(map)
+        elif self.left in map:
+            self.left = map[self.left]
+        if isinstance(self.right, Expression):
+            self.right.reset(map)
+        elif self.right in map:
+            self.right = map[self.right]
+
+
+class ArithmeticExpr(Expression):
+    def __init__(self, left, operator, right=None):
+        super().__init__(left, operator, right)
+        if operator.lower() not in ('+', '-', '*', '/', '**'):
+            raise er.UtilityException('LogicExpr', 'incorrect operator: ', operator)
+
+    def evaluate(self):
+        if isinstance(self.left, Expression):
+            self.left.evaluate()
+        if isinstance(self.right, Expression):
+            self.right.evaluate()
+        type_ = get_right_type(self.left, self.right)
+        self.left = type_(self.left)
+        self.right = type_(self.right)
+        func = operations.get_function(self.operator)
+        return func(self.left, self.right)
+
 
 class LogicExpr(Expression):
     def __init__ (self, left, operator, right=None):
@@ -99,21 +127,13 @@ class LogicExpr(Expression):
         if isinstance(self.right, Expression):
             self.right = self.right.evaluate()
         if self.operator in ('not', 'is none', 'is not none'):
-            if self.operator == 'not':
-                return not self.left
-            elif self.operator == 'is none':
-                return self.left is None
-            elif self.operator == 'is not none':
-                return self. left is not None
+            func = operations.get_function(self.operator)
+            return func(self.left)
         elif self.operator in ('and', 'or'):
             if type(self.left) != bool or type(self.right) != bool:
                 raise er.UtilityException('LogicExpr', 'evaluation', 'logic comparing non-bool values: {0}, {1}')
-            elif self.operator == 'or':
-                return self.left or self.right
-            elif self.operator == 'and':
-                return self.left and self.right
-        elif self.operator == 'like':
-            pass
+            func = operations.get_function(self.operator)
+            return func(self.left, self.right)
         elif type(self.left) != type(self.right):
             type_ = get_right_type(self.left, self.right)
             try:
@@ -126,24 +146,15 @@ class LogicExpr(Expression):
                 raise er.UtilityException('LogicExpr', 'evaluation', 'can\'t compare {0] and {1}'.format(
                     self.left, self.right
                 ), exc)
-            if self.operator == '>':
-                return self.left > self.right
-            elif self.operator == '<':
-                return self.left < self.right
-            elif self.operator == '=':
-                return self.left == self.right
-            elif self.operator == '<=':
-                return self.left <= self.right
-            elif self.operator == '>=':
-                return self.left >= self.right
-            elif self.operator == '<>':
-                return self.left != self.right
-            elif self.operator == 'in':
-                return self.left in self.right
-            elif self.operator == 'not in':
-                return self.left not in self.right
-            elif self.operator == 'like':
-                if
+            func = operations.get_function(self.operator)
+            return func(self.left, self.right)
+
+
+def get_expr_type(operator):
+    if operator in ('<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none'):
+        return LogicExpr
+    elif operator in ('+', '-', '*', '/', '**'):
+        return ArithmeticExpr
 
 
 class ExpressionParser:
