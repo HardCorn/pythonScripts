@@ -1,6 +1,7 @@
 import modelExceptions as er
 import datetime as dt
 import operations
+import smartSplit as ss
 
 
 DEBUG = False
@@ -12,6 +13,10 @@ YEAR_PARTITION_FMT = 'YYYY'                             # формат для г
 SHORT_YEAR_PARTITION_FMT = 'YY'                         # короткий формат для годовых партиций
 ACTUALITY_DTTM_VALUE = 'current_timestamp'              # значение атрибута актуальности - текущие дата-время
 ACTUALITY_DATE_VALUE = 'current_date'                   # значение атрибута актуальности - текущая дата
+OPERATOR_LIST = ('<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none',
+                 '+', '-', '*', '/', '**')
+LOGIC_OPERATOR_LIST = ('<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none')
+ARITHMETIC_OPERATOR_LIST = ('+', '-', '*', '/', '**')
 
 
 def refmt(fmt):                     # приводим к форматам питона, не предполагаем никаких экстравагантных форматов
@@ -51,104 +56,36 @@ def date_to_str(date, fmt=DATE_DEFAULT_FMT):
     return dt.date.strftime(date, refmt(fmt))
 
 
+def to_date(date, fmt=DATE_DEFAULT_FMT):
+    if type(date) == str:
+        return str_to_date(date, fmt)
+    elif type(date) == dt.date:
+        return date
+    elif type(date) == dt.datetime:
+        return date.date()
+    else:
+        raise er.UtilityException('Transformation from {0} to date does not supported'.format(type(date)))
+
+
+def to_datetime(date, fmt=DATETIME_DEFAULT_FMT):
+    if type(date) == str:
+        return str_to_datetime(date, fmt)
+    elif type(date) == dt.date:
+        return dt.datetime(date.year, date.month, date.day)
+    elif type(date) == dt.datetime:
+        return date
+    else:
+        raise er.UtilityException('Transformation from {0} to date does not supported'.format(type(date)))
+
+
 TYPE_COMPARE = {
-    str: 1,
+    str: 3,
     int: 0,
     float: -1,
-    dt.date: 3,
-    dt.datetime: 2,
-    'empty_list': 100
+    dt.date: 2,
+    dt.datetime: 1,
+    list: 100
 }
-
-
-def str_to_type(str_):
-    if str_.isnumeric():
-        return int(str_)
-    if str_.count('.') == 1 and str_.replace('.', '').isnumeric():
-        return float(str_)
-    try:
-        return str_to_date(str_.strip('\''))
-    except Exception:
-        pass
-    try:
-        return str_to_datetime(str_.strip('\''))
-    except Exception:
-        pass
-    return str_
-
-
-def get_min_delimiter(str_, split_list=' ()\t\n,'):
-    tmp = list()
-    for each in (split_list):
-        tmp2 = str_.find(each)
-        if tmp2 != -1:
-            tmp.append(tmp2)
-    tmp.sort()
-    if len(tmp) > 0:
-        return tmp[0]
-    else:
-        return -1
-
-
-def smart_split(str_, split_list=' ()\t\n,'):
-    res = list()
-    tmp_list = list()
-    buffer = str_.lower().replace('\'\'', '"')
-    tmp_word = ''
-    delim = get_min_delimiter(buffer, split_list)
-    while delim != -1:
-        tmp = buffer[:delim]
-        delimiter = buffer[delim]
-        buffer = buffer[delim + 1:]
-        qt_start = tmp.find("'")
-        if tmp in ('and', 'or'):
-            res.append(tmp)
-        elif tmp in ('<', '>', '<=', '>=', '=', '<>', 'like', '+', '-', '*', '/', '**'):
-            res.append(tmp)
-        elif tmp in ('not', 'is'):
-            if tmp_word == 'is' and tmp == 'not':
-                tmp_word += ' ' + tmp
-            else:
-                if tmp_word != '':
-                    res.append(tmp_word)
-                tmp_word = tmp
-        elif tmp == 'in':
-            if tmp_word == 'not':
-                res.append(tmp_word + ' ' + tmp)
-            else:
-                res.append(tmp)
-            tmp_word = ''
-        elif tmp == 'none':
-            res.append(tmp_word + ' ' + tmp)
-            tmp_word = ''
-        elif tmp_word == 'not':
-            if tmp_word != '':
-                res.append(tmp_word)
-            tmp_word = tmp
-        elif qt_start != -1:
-            tmp_word += tmp[:qt_start]
-            qt_end = tmp[qt_start + 1:].find("'")
-            bf_qt = buffer.find("'")
-            if tmp_word != '':
-                res.append(tmp_word)
-            if qt_end != -1:
-                res.append(str_to_type(tmp[qt_start:qt_end + 3].replace('"', '\'\'')))
-                buffer = tmp[qt_end + 3:] + buffer
-            elif bf_qt != -1:
-                res.append(str_to_type(tmp[qt_start:] + buffer[:bf_qt + 3].replace('"', '\'\'')))
-                buffer = buffer[bf_qt + 3:]
-            else:
-                raise er.UtilityException('Smart split error: unclosed quotation mark')
-            tmp_word = ''
-        else:
-            if delimiter != ',' and tmp != '':
-                res.append(str_to_type(tmp))
-        if delimiter in ('(', ',', ')'):
-            res.append(delimiter)
-        delim = get_min_delimiter(buffer)
-    if buffer != '':
-        res.append(str_to_type(buffer))
-    return res
 
 
 def get_right_type(left, right):
@@ -158,9 +95,13 @@ def get_right_type(left, right):
         if len(tp_right) > 0:
             tp_right = type(right[0])
         else:
-            tp_right = 'empty_list'
+            tp_right = list
     if tp_left == tp_right:
         return tp_left
+    if dt.datetime in (tp_right, tp_left):
+        return to_datetime
+    if dt.date in (tp_right, tp_left):
+        return to_date
     rn_tp_left = TYPE_COMPARE[tp_left]
     rn_tp_right = TYPE_COMPARE[tp_right]
     if rn_tp_left == rn_tp_right:
@@ -194,7 +135,7 @@ class Expression:
 class ArithmeticExpr(Expression):
     def __init__(self, left, operator, right=None):
         super().__init__(left, operator, right)
-        if operator.lower() not in ('+', '-', '*', '/', '**'):
+        if operator.lower() not in ARITHMETIC_OPERATOR_LIST:
             raise er.UtilityException('LogicExpr', 'incorrect operator: ', operator)
 
     def evaluate(self):
@@ -212,7 +153,7 @@ class ArithmeticExpr(Expression):
 class LogicExpr(Expression):
     def __init__ (self, left, operator, right=None):
         super().__init__(left, operator, right)
-        if operator.lower() not in ('<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none'):
+        if operator.lower() not in LOGIC_OPERATOR_LIST:
             raise er.UtilityException('LogicExpr', 'incorrect operator: ', operator)
 
     def evaluate(self):
@@ -245,18 +186,20 @@ class LogicExpr(Expression):
 
 
 def get_expr_type(operator):
-    if operator in ('<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none'):
+    if operator in LOGIC_OPERATOR_LIST:
         return LogicExpr
-    elif operator in ('+', '-', '*', '/', '**'):
+    elif operator in ARITHMETIC_OPERATOR_LIST:
         return ArithmeticExpr
 
 
 class ExpressionParser:
     def __init__(self, str_):
-        self.str_ = str_
+        self.str_ = str_.lower()
 
-    def parse_input(self):
-        pass
+    def parse(self):
+        tmp_list = ss.smart_split(self.str_, OPERATOR_LIST)
+        for each in tmp_list:
+            pass
 
 
 class Filter:
