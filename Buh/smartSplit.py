@@ -129,8 +129,9 @@ def _str_qoutation_split(str_, inner_qoutes=True):
 def _str_split(str_, symbol, symbol_list, delimiter=False, pass_qouted=True):
     if is_quoted(str_) and pass_qouted:
         return str_
-    if str_ in symbol_list:
-        return str_
+    if symbol_list is not None:
+        if str_ in symbol_list:
+            return str_
     if delimiter:
         return str_.split(symbol)
     else:
@@ -189,7 +190,8 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
     if symbol_list is not None:
         if type(symbol_list) == str:
             tmp = list()
-            symbol_list = tmp.append(symbol_list)
+            tmp.append(symbol_list)
+            symbol_list = tmp
         if len(symbol_list) != 0:
             sorted_list = _symbol_sort(symbol_list)
             for symbol in sorted_list:
