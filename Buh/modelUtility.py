@@ -1,205 +1,31 @@
-import modelExceptions as er
-import datetime as dt
-import operations
+import dates as dt
+import expressions as exp
+import operations as op
 import smartSplit as ss
+import utility as ut
 
 
-DEBUG = False
-DATE_DEFAULT_FMT = 'YYYY-MM-DD'                         # формат по-умолчанию для типа дата
-DATETIME_DEFAULT_FMT = 'YYYY-MM-DD HH:MI:SS.SSSSSS'      # формат по-умолчанию для типа дата-время
-DAILY_PARTITION_FMT = 'YYYYMMDD'                        # формат дат для ежедневных партиций
-MONTH_PARTITION_FMT = 'YYYYMM'                          # формат дат для месячных партиций
-YEAR_PARTITION_FMT = 'YYYY'                             # формат для годовых партиций
-SHORT_YEAR_PARTITION_FMT = 'YY'                         # короткий формат для годовых партиций
-ACTUALITY_DTTM_VALUE = 'current_timestamp'              # значение атрибута актуальности - текущие дата-время
-ACTUALITY_DATE_VALUE = 'current_date'                   # значение атрибута актуальности - текущая дата
-OPERATOR_LIST = ('<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none',
-                 '+', '-', '*', '/', '**')
-LOGIC_OPERATOR_LIST = ('<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none')
-ARITHMETIC_OPERATOR_LIST = ('+', '-', '*', '/', '**')
 
-
-def refmt(fmt):                     # приводим к форматам питона, не предполагаем никаких экстравагантных форматов
-    return fmt.upper().replace('YYYY', '%Y').replace('YY', '%y').replace('MM', '%m').replace('DD', '%d').replace(
-        'HH', '%H').replace('MI', '%M').replace('SSSSSS', '%f').replace('SS', '%S')
-
-
-def str_to_datetime(str_, fmt=DATETIME_DEFAULT_FMT):
-    if type(str_) == str and str_ == ACTUALITY_DTTM_VALUE:  # проставляем current_timestamp
-        str_ = dt.datetime.now().strftime(refmt(fmt))
-    return dt.datetime.strptime(str_, refmt(fmt))
-
-
-def str_to_date(str_, fmt=DATE_DEFAULT_FMT):
-    if type(str_) == str and str_ == ACTUALITY_DATE_VALUE:  # проставляем current_date
-        str_ = dt.datetime.now().strftime(refmt(fmt))
-    return dt.datetime.strptime(str_, refmt(fmt)).date()
-
-
-def datetime_to_str(date, fmt=DATETIME_DEFAULT_FMT):
-    if type(date) == str and date == ACTUALITY_DTTM_VALUE:  # проставляем current_timestamp
-        date = dt.datetime.now()
-    elif type(date) == str:
-        date = str_to_datetime(date)
-    if type(date) != dt.datetime:
-        raise er.UtilityException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
-    return dt.datetime.strftime(date, refmt(fmt))
-
-
-def date_to_str(date, fmt=DATE_DEFAULT_FMT):
-    if type(date) == str and date == ACTUALITY_DATE_VALUE:  # проставляем current_date
-        date = dt.datetime.now().date()
-    elif type(date) == str:
-        date = str_to_date(date)
-    if type(date) != dt.date:
-        raise er.UtilityException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
-    return dt.date.strftime(date, refmt(fmt))
-
-
-def to_date(date, fmt=DATE_DEFAULT_FMT):
-    if type(date) == str:
-        return str_to_date(date, fmt)
-    elif type(date) == dt.date:
-        return date
-    elif type(date) == dt.datetime:
-        return date.date()
-    else:
-        raise er.UtilityException('Transformation from {0} to date does not supported'.format(type(date)))
-
-
-def to_datetime(date, fmt=DATETIME_DEFAULT_FMT):
-    if type(date) == str:
-        return str_to_datetime(date, fmt)
-    elif type(date) == dt.date:
-        return dt.datetime(date.year, date.month, date.day)
-    elif type(date) == dt.datetime:
-        return date
-    else:
-        raise er.UtilityException('Transformation from {0} to date does not supported'.format(type(date)))
-
-
-TYPE_COMPARE = {
-    str: 3,
-    int: 0,
-    float: -1,
-    dt.date: 2,
-    dt.datetime: 1,
-    list: 100
-}
-
-
-def get_right_type(left, right):
-    tp_left = type(left)
-    tp_right = type(right)
-    if tp_right in (list, tuple):
-        if len(tp_right) > 0:
-            tp_right = type(right[0])
-        else:
-            tp_right = list
-    if tp_left == tp_right:
-        return tp_left
-    if dt.datetime in (tp_right, tp_left):
-        return to_datetime
-    if dt.date in (tp_right, tp_left):
-        return to_date
-    rn_tp_left = TYPE_COMPARE[tp_left]
-    rn_tp_right = TYPE_COMPARE[tp_right]
-    if rn_tp_left == rn_tp_right:
-        return tp_left
-    elif rn_tp_left < rn_tp_right:
-        return tp_left
-    else:
-        return tp_right
-
-
-class Expression:
-    def __init__(self, left, operator, right=None):
-        self.left = left
-        self.operator = operator.lower()
-        self.right = right
-
-    def evaluate(self):
-        pass
-
-    def reset(self, map):
-        if isinstance(self.left, Expression):
-            self.left.reset(map)
-        elif self.left in map:
-            self.left = map[self.left]
-        if isinstance(self.right, Expression):
-            self.right.reset(map)
-        elif self.right in map:
-            self.right = map[self.right]
-
-
-class ArithmeticExpr(Expression):
-    def __init__(self, left, operator, right=None):
-        super().__init__(left, operator, right)
-        if operator.lower() not in ARITHMETIC_OPERATOR_LIST:
-            raise er.UtilityException('LogicExpr', 'incorrect operator: ', operator)
-
-    def evaluate(self):
-        if isinstance(self.left, Expression):
-            self.left.evaluate()
-        if isinstance(self.right, Expression):
-            self.right.evaluate()
-        type_ = get_right_type(self.left, self.right)
-        self.left = type_(self.left)
-        self.right = type_(self.right)
-        func = operations.get_function(self.operator)
-        return func(self.left, self.right)
-
-
-class LogicExpr(Expression):
-    def __init__ (self, left, operator, right=None):
-        super().__init__(left, operator, right)
-        if operator.lower() not in LOGIC_OPERATOR_LIST:
-            raise er.UtilityException('LogicExpr', 'incorrect operator: ', operator)
-
-    def evaluate(self):
-        if isinstance(self.left, Expression):
-            self.left = self.left.evaluate()
-        if isinstance(self.right, Expression):
-            self.right = self.right.evaluate()
-        if self.operator in ('not', 'is none', 'is not none'):
-            func = operations.get_function(self.operator)
-            return func(self.left)
-        elif self.operator in ('and', 'or'):
-            if type(self.left) != bool or type(self.right) != bool:
-                raise er.UtilityException('LogicExpr', 'evaluation', 'logic comparing non-bool values: {0}, {1}')
-            func = operations.get_function(self.operator)
-            return func(self.left, self.right)
-        elif type(self.left) != type(self.right):
-            type_ = get_right_type(self.left, self.right)
-            try:
-                self.left = type_(self.left)
-                if type(self.right) in (tuple, list):
-                    self.right = list(type_(each) for each in self.right)
-                else:
-                    self.right = type_(self.right)
-            except Exception as exc:
-                raise er.UtilityException('LogicExpr', 'evaluation', 'can\'t compare {0] and {1}'.format(
-                    self.left, self.right
-                ), exc)
-            func = operations.get_function(self.operator)
-            return func(self.left, self.right)
-
-
-def get_expr_type(operator):
-    if operator in LOGIC_OPERATOR_LIST:
-        return LogicExpr
-    elif operator in ARITHMETIC_OPERATOR_LIST:
-        return ArithmeticExpr
 
 
 class ExpressionParser:
     def __init__(self, str_):
         self.str_ = str_.lower()
 
+    def _try_build(self):
+
+
     def parse(self):
-        tmp_list = ss.smart_split(self.str_, OPERATOR_LIST)
-        for each in tmp_list:
-            pass
+        str_stack = ut.Stack(ss.smart_split(self.str_, exp.OPERATOR_LIST, ' \t\n'))
+        operand_stack = ut.Stack()
+        bool_stack = ut.Stack()
+        compare_stack = ut.Stack()
+        control_stack = ut.Stack()
+        arithmetic_stack = ut.Stack()
+        while not str_stack.is_empty():
+            val = str_stack.next()
+            if val not in op.OPERATIONS:
+                pass
 
 
 class Filter:
@@ -216,6 +42,6 @@ class Filter:
 
 
 if __name__ == '__main__':
-    str = "1 = 0 and 1 not in '2' or ('2018-01-01' < '2018-01-02') and self_name is none ('22', '33', '44')"
+    str = "1 = 0 and 1 not in '' or ('2018-01-01' < '2018-01-02') and self_name is none ('22', '33', '44')"
     print(str)
-    print(smart_split(str))
+    print(ss.smart_split(str, exp.OPERATOR_LIST))

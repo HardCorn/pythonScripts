@@ -1,9 +1,8 @@
-class BaseModelException(BaseException):
-    def __init__(self, *args):
-        self.args = args
+import utility
 
-    def __str__(self):
-        return ': '.join(self.args)
+
+class BaseModelException(utility.BaseError):
+    pass
 
 
 class ModelFileException(BaseModelException):
@@ -27,4 +26,20 @@ class DataValidationError(ModelFileException):
 
 
 class UtilityException(BaseModelException):
+    pass
+
+
+class Stopper(BaseModelException):
+    pass
+
+
+class StopArithmetic(Stopper):
+    pass
+
+
+class StopBool(Stopper):
+    pass
+
+
+class StopControl(Stopper):
     pass

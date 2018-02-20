@@ -1,6 +1,11 @@
 import re
 
 
+UNARY_OPERATIONS = ('is none', 'is not none', 'not')
+UNARY_PRE_OPERATIONS = ('is none', 'is not none')
+UNARY_POST_OPERATIONS = ('not', )
+
+
 def less(left, right):
     return left < right
 

@@ -48,21 +48,26 @@ def date_to_str(date, fmt=DATE_DEFAULT_FMT):
     return dt.date.strftime(date, refmt(fmt))
 
 
-def str_to_type(str_, convert_types=True, inner_qoutes=True):
+def str_to_type(str_, convert_types=True, inner_quotes=True, date_format=DATE_DEFAULT_FMT,
+                datetime_format=DATETIME_DEFAULT_FMT):
     if convert_types:
+        if str_.lower() == 'true':
+            return True
+        if str_.lower() == 'false':
+            return False
         if str_.isnumeric():
             return int(str_)
         if str_.count('.') == 1 and str_.replace('.', '').isnumeric():
             return float(str_)
         try:
-            return str_to_date(str_.strip('\''))
+            return str_to_date(str_.strip('\''), date_format)
         except Exception:
             pass
         try:
-            return str_to_datetime(str_.strip('\''))
+            return str_to_datetime(str_.strip('\''), datetime_format)
         except Exception:
             pass
-    if inner_qoutes:
+    if inner_quotes:
         return str_.strip('\'').replace('"',"'")
     else:
         return str_.strip('\'')
@@ -76,7 +81,6 @@ def _symbol_sort(lst):
     res = dict()    
     word_splitter = max(len(each) for each in lst) + 1
     for each in lst:
-        key = -1
         key = word_splitter * each.count(' ') + len(each)
         if key not in res:
             res[key] = list()
@@ -89,7 +93,7 @@ def _symbol_sort(lst):
     return res_list
     
 
-def _str_qoutation_split(str_, inner_qoutes=True):
+def _str_quotation_split(str_, inner_quotes=True):
     fnd = str_.find('\'')
     res = list()
     if fnd == -1:
@@ -103,16 +107,13 @@ def _str_qoutation_split(str_, inner_qoutes=True):
             tmp_word = str_[:fnd].strip()
             str_ = str_[fnd + 1:]
         else:
-            if inner_qoutes:
+            if inner_quotes:
                 if fnd + 1 < len(str_) - 1 and str_[fnd + 1] == "'":
                     counter += 1
                     str_ = str_[:fnd] + '"' + (str_[fnd + 1:][1:])
                 else:
                     res.append(tmp_word)
-                    if str_[:fnd] == '':
-                        res.append('"')
-                    else:
-                        res.append("'" + str_[:fnd] + "'")
+                    res.append("'" + str_[:fnd] + "'")
                     str_ = str_[fnd + 1:]
             else:
                 res.append(tmp_word)
@@ -174,18 +175,21 @@ def _str_list_cleaner(obj_):
     return res
 
 
-def _str_list_to_type(obj_, convert_types, inner_qoutes):
+def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_format):
     result = list()
     for each in obj_:
-        result.append(str_to_type(each, convert_types, inner_qoutes))
+        result.append(str_to_type(each, convert_types, inner_quotes, date_format, datetime_format))
     return result
 
 
 def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=True,
-                do_clean=True, convert_types=True, inner_qoutes=True):
+                do_clean=True, convert_types=True, inner_quotes=True, date_format=DATE_DEFAULT_FMT,
+                datetime_format=DATETIME_DEFAULT_FMT):
+    if not do_quotation_split and inner_quotes:
+        inner_quotes = False
     if do_quotation_split and (type(symbol_list) in (str, list, tuple) and len(symbol_list) > 0
             or symbol_list is None):
-        result = _str_qoutation_split(str_, inner_qoutes)
+        result = _str_quotation_split(str_, inner_quotes)
     else:
         result = str_
     if symbol_list is not None:
@@ -204,27 +208,18 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
             result = _obj_split(result, each, symbol_list, delimiter=True)
     if do_clean and type(result) == list:
         result = _str_list_cleaner(result)
-    if (convert_types or inner_qoutes) and type(result) == list :
-        result = _str_list_to_type(result, convert_types, inner_qoutes)
+    if (convert_types or inner_quotes) and type(result) == list :
+        result = _str_list_to_type(result, convert_types, inner_quotes, date_format, datetime_format)
     return result
 
 
 
 if __name__ == '__main__':
-    test_str = "sdfsdf'dfdf' dddl' \n \t''dffl'"
-    test_res = _str_qoutation_split(test_str)
-    test_res_2 = _obj_split(test_res, 'df', ['df', "'"], delimiter=False, pass_qouted=True)
-    test_res_4 = _str_list_cleaner(test_res_2)
-    print(test_str)
-    print(test_res)
-    print(test_res_2)
-    print(test_res_4)
-    test_list = ['.', 'l', 'one', 'one or', 'one or two', ]
-    test_res_3 = _input_range(test_list)
-    print(test_res_3)
-    test_str_5 = "1=0 and 1 not is not none in '''2'''  and 2 = '' or some_attr = '''2012-12-31'''or('2018-01-01' < '2018-01-02') and self_name is none ('22','33','44')"
+    test_str_5 = "1=0 and 1 not is not none in '''2'''  and '2' = '' or some_attr = '''2012-12-31'''or('2018-01-01' < '2018-01-02') and self_name is none ('22','33','44')"
     test_str_6 = "'''1014 - 33 - 33'''"
     oper_list = ['<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none',
                  '+', '-', '*', '/', '**']
     test_res = smart_split(test_str_5, oper_list)
-    print(test_res)
+    print(test_str_5)
+    print(smart_split(test_str_5, oper_list, ' \t\n'))
+    # print(test_res)
