@@ -48,20 +48,24 @@ def date_to_str(date, fmt=DATE_DEFAULT_FMT):
     return dt.date.strftime(date, refmt(fmt))
 
 
-def str_to_type(str_):
-    if str_.isnumeric():
-        return int(str_)
-    if str_.count('.') == 1 and str_.replace('.', '').isnumeric():
-        return float(str_)
-    try:
-        return str_to_date(str_.strip('\''))
-    except Exception:
-        pass
-    try:
-        return str_to_datetime(str_.strip('\''))
-    except Exception:
-        pass
-    return str_.strip('\'').replace('"',"'")
+def str_to_type(str_, convert_types=True, inner_qoutes=True):
+    if convert_types:
+        if str_.isnumeric():
+            return int(str_)
+        if str_.count('.') == 1 and str_.replace('.', '').isnumeric():
+            return float(str_)
+        try:
+            return str_to_date(str_.strip('\''))
+        except Exception:
+            pass
+        try:
+            return str_to_datetime(str_.strip('\''))
+        except Exception:
+            pass
+    if inner_qoutes:
+        return str_.strip('\'').replace('"',"'")
+    else:
+        return str_.strip('\'')
 
 
 def is_quoted(str_):
@@ -85,7 +89,7 @@ def _symbol_sort(lst):
     return res_list
     
 
-def _str_qoutation_split(str_):
+def _str_qoutation_split(str_, inner_qoutes=True):
     fnd = str_.find('\'')
     res = list()
     if fnd == -1:
@@ -98,16 +102,22 @@ def _str_qoutation_split(str_):
             tmp_word = str_[:fnd].strip()
             str_ = str_[fnd + 1:]
         else:
-            if fnd + 1 < len(str_) - 1 and str_[fnd + 1] == "'":
-                counter += 1
-                str_ = str_[:fnd] + '"' + (str_[fnd + 1:][1:])
+            if inner_qoutes:
+                if fnd + 1 < len(str_) - 1 and str_[fnd + 1] == "'":
+                    counter += 1
+                    str_ = str_[:fnd] + '"' + (str_[fnd + 1:][1:])
+                else:
+                    res.append(tmp_word)
+                    if str_[:fnd] == '':
+                        res.append('"')
+                    else:
+                        res.append("'" + str_[:fnd] + "'")
+                    str_ = str_[fnd + 1:]
             else:
                 res.append(tmp_word)
-                if str_[:fnd] == '':
-                    res.append('"')
-                else:
-                    res.append("'" + str_[:fnd] + "'")
+                res.append("'" + str_[:fnd] + "'")
                 str_ = str_[fnd + 1:]
+                
         fnd = str_.find("'")
     if counter % 2 != 0:
         raise ValueError('SmartSplit: string qoutation splitter error: Unclosed quotation mark in {}'.format(str_))
@@ -162,23 +172,37 @@ def _str_list_cleaner(obj_):
     return res
 
 
-def _str_list_to_type(obj_):
+def _str_list_to_type(obj_, convert_types, inner_qoutes):
     result = list()
     for each in obj_:
-        result.append(str_to_type(each))
+        result.append(str_to_type(each, convert_types, inner_qoutes))
     return result
 
 
-def smart_split(str_, symbol_list, delimiter_list=None):
-    sorted_list = _symbol_sort(symbol_list)
-    result = _str_qoutation_split(str_)
-    for symbol in sorted_list:
-        result = _obj_split(result, symbol, symbol_list)
+def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=True,
+                do_clean=True, convert_types=True, inner_qoutes=True):
+    if do_quotation_split and (type(symbol_list) in (str, list, tuple) and len(symbol_list) > 0
+            or symbol_list is None):
+        result = _str_qoutation_split(str_, inner_qoutes)
+    else:
+        result = str_
+    if symbol_list is not None:
+        if type(symbol_list) == str:
+            tmp = list()
+            symbol_list = tmp.append(symbol_list)
+        if len(symbol_list) != 0:
+            sorted_list = _symbol_sort(symbol_list)
+            for symbol in sorted_list:
+                result = _obj_split(result, symbol, symbol_list)
+        else:
+            result = result.split()
     if delimiter_list is not None:
         for each in delimiter_list:
             result = _obj_split(result, each, symbol_list, delimiter=True)
-    result = _str_list_cleaner(result)
-    result = _str_list_to_type(result)
+    if do_clean and type(result) == list:
+        result = _str_list_cleaner(result)
+    if (convert_types or inner_qoutes) and type(result) == list :
+        result = _str_list_to_type(result, convert_types, inner_qoutes)
     return result
 
 
