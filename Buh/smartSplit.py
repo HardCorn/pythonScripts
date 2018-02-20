@@ -61,27 +61,28 @@ def str_to_type(str_):
         return str_to_datetime(str_.strip('\''))
     except Exception:
         pass
-    return str_.strip('\'').replace('"','')
+    return str_.strip('\'').replace('"',"'")
 
 
 def is_quoted(str_):
     return str_.count('\'') == 2 and str_[0] == '\'' and str_[len(str_) - 1] == '\''
 
 
-def _input_range(lst):
-    res = dict()
+def _symbol_sort(lst):
+    res = dict()    
+    word_splitter = max(len(each) for each in lst) + 1
     for each in lst:
         key = -1
-        if len(each) == 1:
-            key = 0
-        else:
-            key = each.count(' ') + 1
-        if key == -1:
-            raise ValueError('Unknown error: input range key = -1')
+        key = word_splitter * each.count(' ') + len(each)
         if key not in res:
             res[key] = list()
         res[key].append(each)
-    return res
+    tmp_sort = list(res.keys())
+    tmp_sort.sort(reverse=True)
+    res_list = list()
+    for each in tmp_sort:
+        res_list += res[each]
+    return res_list
     
 
 def _str_qoutation_split(str_):
@@ -95,10 +96,18 @@ def _str_qoutation_split(str_):
         counter += 1
         if counter % 2 == 1:
             tmp_word = str_[:fnd].strip()
+            str_ = str_[fnd + 1:]
         else:
-            res.append(tmp_word)
-            res.append("'" + str_[:fnd] + "'")
-        str_ = str_[fnd + 1:]
+            if fnd + 1 < len(str_) - 1 and str_[fnd + 1] == "'":
+                counter += 1
+                str_ = str_[:fnd] + '"' + (str_[fnd + 1:][1:])
+            else:
+                res.append(tmp_word)
+                if str_[:fnd] == '':
+                    res.append('"')
+                else:
+                    res.append("'" + str_[:fnd] + "'")
+                str_ = str_[fnd + 1:]
         fnd = str_.find("'")
     if counter % 2 != 0:
         raise ValueError('SmartSplit: string qoutation splitter error: Unclosed quotation mark in {}'.format(str_))
@@ -161,13 +170,10 @@ def _str_list_to_type(obj_):
 
 
 def smart_split(str_, symbol_list, delimiter_list=None):
-    dic = _input_range(symbol_list)
-    keys = list(dic.keys())
-    keys.sort(reverse=True)
-    result = _str_qoutation_split(str_.replace("''", '"').replace('"\'', "'"))
-    for each in keys:
-        for symbol in dic[each]:
-            result = _obj_split(result, symbol, symbol_list)
+    sorted_list = _symbol_sort(symbol_list)
+    result = _str_qoutation_split(str_)
+    for symbol in sorted_list:
+        result = _obj_split(result, symbol, symbol_list)
     if delimiter_list is not None:
         for each in delimiter_list:
             result = _obj_split(result, each, symbol_list, delimiter=True)
