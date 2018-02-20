@@ -93,7 +93,8 @@ def _str_qoutation_split(str_, inner_qoutes=True):
     fnd = str_.find('\'')
     res = list()
     if fnd == -1:
-        return res.append(str_)
+        res.append(str_)
+        return res
     tmp_word = ''
     counter = 0
     while fnd != -1:
