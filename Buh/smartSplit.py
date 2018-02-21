@@ -183,10 +183,12 @@ def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_f
 
 
 def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=True,
-                do_clean=True, convert_types=True, inner_quotes=True, date_format=DATE_DEFAULT_FMT,
+                do_clean=True, convert_types=True, date_format=DATE_DEFAULT_FMT,
                 datetime_format=DATETIME_DEFAULT_FMT):
-    if not do_quotation_split and inner_quotes:
+    if not do_quotation_split:
         inner_quotes = False
+    else:
+        inner_qoutes = True
     if do_quotation_split and (type(symbol_list) in (str, list, tuple) and len(symbol_list) > 0
             or symbol_list is None):
         result = _str_quotation_split(str_, inner_quotes)
@@ -211,7 +213,6 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
     if (convert_types or inner_quotes) and type(result) == list :
         result = _str_list_to_type(result, convert_types, inner_quotes, date_format, datetime_format)
     return result
-
 
 
 if __name__ == '__main__':

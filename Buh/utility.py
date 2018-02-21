@@ -16,6 +16,10 @@ class SequenceError(BaseError):
 
 class StackError(BaseError):
     pass
+    
+   
+class ListOperationError(BaseError):
+    pass
 
 
 class SingleTon(object):
