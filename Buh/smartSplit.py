@@ -188,7 +188,7 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
     if not do_quotation_split:
         inner_quotes = False
     else:
-        inner_qoutes = True
+        inner_quotes = True
     if do_quotation_split and (type(symbol_list) in (str, list, tuple) and len(symbol_list) > 0
             or symbol_list is None):
         result = _str_quotation_split(str_, inner_quotes)
