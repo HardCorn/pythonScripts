@@ -1,4 +1,5 @@
 import datetime as dt
+import listOperations as lo
 
 
 DATE_DEFAULT_FMT = 'YYYY-MM-DD'                         # формат по-умолчанию для типа дата
@@ -183,7 +184,7 @@ def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_f
 
 
 def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=True,
-                do_clean=True, convert_types=True, date_format=DATE_DEFAULT_FMT,
+                do_clean=True, convert_types=True, convert_tuples=True, date_format=DATE_DEFAULT_FMT,
                 datetime_format=DATETIME_DEFAULT_FMT):
     if not do_quotation_split:
         inner_quotes = False
@@ -212,6 +213,8 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
         result = _str_list_cleaner(result)
     if (convert_types or inner_quotes) and type(result) == list :
         result = _str_list_to_type(result, convert_types, inner_quotes, date_format, datetime_format)
+    if convert_tuples:
+        result = lo.modify_list(result)
     return result
 
 
