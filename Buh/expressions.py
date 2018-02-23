@@ -162,7 +162,7 @@ class ArithmeticExpr(Expression):
         return func(left, right)
 
     def _un_eval(self):
-        if self.operator in EVAL_WITH_DIC_ONLY_OPER and self.dictionary is None \
+        if self.operator in EVAL_WITH_DIC_ONLY_OPER and not self.dictionary \
                 and not isinstance(self.variable, Expression) and type(self.variable) == str:
             raise ExpressionError('Can\'t resolve {0} operator without it\'s operand!')
         var = self.get_val(self.variable)
@@ -270,8 +270,10 @@ class ExpressionParser:
         ls = self._parse_simple_list(ls)
         return ls[0]
 
-    def parse(self):
-        splitted_str = ss.smart_split(self.str_, OPERATOR_LIST, DELIMITER_DEFAULT_LIST)
+    def parse(self, str_=None):
+        if str_ is None:
+            str_ = self.str_
+        splitted_str = ss.smart_split(str_, OPERATOR_LIST, DELIMITER_DEFAULT_LIST)
         expr = self.parse_list(splitted_str)
         return expr
 
