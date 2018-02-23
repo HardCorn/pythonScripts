@@ -1,7 +1,9 @@
 import re
 
 
-UNARY_OPERATIONS = ('is none', 'is not none', 'not')
+UNARY_LOGIC_OPERATIONS = ('is none', 'is not none', 'not')
+UNARY_ARITHMETIC_OPERATIONS = ()
+UNARY_OPERATIONS = UNARY_LOGIC_OPERATIONS + UNARY_ARITHMETIC_OPERATIONS
 UNARY_PRE_OPERATIONS = ('is none', 'is not none')
 UNARY_POST_OPERATIONS = ('not', )
 

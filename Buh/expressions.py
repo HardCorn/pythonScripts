@@ -1,6 +1,10 @@
-import modelExceptions as er
 import dates as dt
 import operations as op
+import utility as ut
+
+
+class ExpressionError(ut.BaseError):
+    pass
 
 
 COMPARE_OPERATOR_LIST = ('<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'is none', 'is not none')
@@ -10,15 +14,22 @@ ARITHMETIC_OPERATOR_LIST = ('+', '-', '*', '/', '**')
 CONTROL_OPERATOR_LIST = ('(', ')')
 COMMA_OPERATOR = (',',)
 OPERATOR_LIST = LOGIC_OPERATOR_LIST + ARITHMETIC_OPERATOR_LIST + CONTROL_OPERATOR_LIST + COMMA_OPERATOR
+UNARY_EXPRESSION = 'un'
+BINARY_EXPRESSION = 'bin'
+COMPLEX_EXPRESSION = 'cmpl'
+BOOLEAN_OPERATION = 'bool'
+COMPARING_OPERATION = 'cmpr'
 
 
 TYPE_COMPARE = {
+    bool: -50,
     str: 3,
     int: 0,
     float: -1,
     dt.date: 2,
     dt.datetime: 1,
-    list: 100
+    list: 100,
+    type(None): -100
 }
 
 
@@ -47,76 +58,128 @@ def get_right_type(left, right):
 
 
 class Expression:
-    def __init__(self, left, operator, right=None):
-        self.left = left
+    def __init__(self, operator, val1, val2=None):
         self.operator = operator.lower()
-        self.right = right
+        self.dictionary = dict()
+        if self.operator in op.UNARY_OPERATIONS:
+            self.type_ = UNARY_EXPRESSION
+            self.variable = val1
+        else:
+            self.type_ = BINARY_EXPRESSION
+            self.left = val1
+            self.right = val2
 
-    def evaluate(self):
+    @classmethod
+    def _get_val(cls, var):
+        if isinstance(var, cls):
+            return var.evaluate()
+        return var
+
+    def get_val(self, var):
+        val = self._get_val(var)
+        if val in self.dictionary:
+            return self.dictionary[val]
+        return val
+
+    def _un_eval(self):
         pass
 
-    def reset(self, map):
-        if isinstance(self.left, Expression):
-            self.left.reset(map)
-        elif self.left in map:
-            self.left = map[self.left]
+    def _bin_eval(self):
+        pass
+
+    def __evaluate__(self):
+        if self.type_ == UNARY_EXPRESSION:
+            return self._un_eval()
+        elif self.type_ == BINARY_EXPRESSION:
+            return self._bin_eval()
+
+    def evaluate(self):
+        return self.__evaluate__()
+
+    def _un_reset(self, map):
+        if isinstance(self.variable, Expression):
+            self.variable.__reset__(map)
+        self.dictionary = map
+
+    def _bin_reset(self, map):
         if isinstance(self.right, Expression):
-            self.right.reset(map)
-        elif self.right in map:
-            self.right = map[self.right]
+            self.right.__reset__(map)
+        if isinstance(self.left, Expression):
+            self.left.__reset__(map)
+        self.dictionary = map
+
+    def __reset__(self, map):
+        if self.type_ == UNARY_EXPRESSION:
+            self._un_reset(map)
+        else:
+            self._bin_reset(map)
+
+    def reset(self, map):
+        if type(map) != dict:
+            raise ExpressionError('Error while set expression map: only dictionary allowed (get {})'.format(map))
+        self.__reset__(map)
+
 
 
 class ArithmeticExpr(Expression):
-    def __init__(self, left, operator, right=None):
-        super().__init__(left, operator, right)
+    def __init__(self, operator, val1, val2=None):
+        super().__init__(operator, val1, val2)
         if operator.lower() not in ARITHMETIC_OPERATOR_LIST:
-            raise er.UtilityException('LogicExpr', 'incorrect operator: ', operator)
+            raise ExpressionError('LogicExpr', 'incorrect operator', operator)
 
-    def evaluate(self):
-        if isinstance(self.left, Expression):
-            self.left.evaluate()
-        if isinstance(self.right, Expression):
-            self.right.evaluate()
-        type_ = get_right_type(self.left, self.right)
-        self.left = type_(self.left)
-        self.right = type_(self.right)
+    def _bin_eval(self):
+        left = self.get_val(self.left)
+        right = self.get_val(self.right)
+        if type(left) != type(right):
+            type_ = get_right_type(left, right)
+            if type_ == type(None):
+                return None
+            left = type_(left)
+            right = type_(right)
         func = op.get_function(self.operator)
-        return func(self.left, self.right)
+        return func(left, right)
+
+    def _un_eval(self):
+        var = self.get_val(self.variable)
+        func = op.get_function(self.operator)
+        return func(var)
 
 
 class LogicExpr(Expression):
-    def __init__ (self, left, operator, right=None):
-        super().__init__(left, operator, right)
+    def __init__ (self, operator, val1, val2=None):
+        super().__init__(operator, val1, val2)
         if operator.lower() not in LOGIC_OPERATOR_LIST:
-            raise er.UtilityException('LogicExpr', 'incorrect operator: ', operator)
+            raise ExpressionError('LogicExpr', 'incorrect operator', operator)
+        if operator in BOOL_OPERATOR_LIST:
+            self.operation_type = BOOLEAN_OPERATION
+        else:
+            self.operation_type = COMPARING_OPERATION
 
-    def evaluate(self):
-        if isinstance(self.left, Expression):
-            self.left = self.left.evaluate()
-        if isinstance(self.right, Expression):
-            self.right = self.right.evaluate()
-        if self.operator in op.UNARY_OPERATIONS:
-            func = op.get_function(self.operator)
-            return func(self.left)
-        elif self.operator in ('and', 'or'):
-            if type(self.left) != bool or type(self.right) != bool:
-                raise er.UtilityException('LogicExpr', 'evaluation', 'logic comparing non-bool values: {0}, {1}')
-            func = op.get_function(self.operator)
-            return func(self.left, self.right)
-        elif type(self.left) != type(self.right):
-            type_ = get_right_type(self.left, self.right)
+    def _un_eval(self):
+        var = self.get_val(self.variable)
+        func = op.get_function(self.operator)
+        return func(var)
+
+    def _bin_eval(self):
+        left = self.get_val(self.left)
+        right = self.get_val(self.right)
+        if type(left) != type(right):
+            type_ = get_right_type(left, right)
+            if type_ == type(None):
+                return None
             try:
-                self.left = type_(self.left)
-                if type(self.right) in (tuple, list):
-                    self.right = list(type_(each) for each in self.right)
+                left = type_(left)
+                if type(right) in (tuple, list):
+                    right = list(type_(each) for each in right)
                 else:
-                    self.right = type_(self.right)
+                    right = type_(right)
             except Exception as exc:
-                raise er.UtilityException('LogicExpr', 'evaluation', 'can\'t compare {0] and {1}'.format(
-                    self.left, self.right
+                raise ExpressionError('LogicExpr', 'evaluation', 'can\'t compare {0] and {1}'.format(
+                    left, right
                 ), exc)
-            func = op.get_function(self.operator)
-            return func(self.left, self.right)
+        func = op.get_function(self.operator)
+        return func(left, right)
+
 
 
 def get_expr_type(operator):
@@ -124,3 +187,13 @@ def get_expr_type(operator):
         return LogicExpr
     elif operator in ARITHMETIC_OPERATOR_LIST:
         return ArithmeticExpr
+
+
+if __name__ == '__main__':
+    a = None
+    b = 'field'
+    c = LogicExpr('and', a, b)
+    dic = {'field': True}
+    c.reset(dic)
+    print(c.evaluate())
+    print(c.left, c.get_val(c.right))
