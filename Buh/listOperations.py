@@ -61,6 +61,8 @@ def tuple_from_list(lst_, fltr_=None, return_list=False, include_mode=False):
 
 def max_(lst_, fltr=None):
     ls = lst_
+    if ls is None:
+        return None
     ls.sort()
     if fltr is None:
         try:
@@ -78,6 +80,8 @@ def max_(lst_, fltr=None):
             
 def min_(lst_, fltr=None):
     ls = lst_
+    if ls is None:
+        return None
     ls.sort(reverse=True)
     if fltr is None:
         try:
@@ -103,7 +107,6 @@ def _valid_list_struct(lst_, start_symb='(', delim_symb=',', end_symb=')'):
         if lst_[st] != delim_symb:
             raise ut.ListOperationError(f'Not valid structure: expected delimiter not found in {st}')
         st += 2
-        
 
 
 def find_list(lst_, start_symb='(', delim_symb=',', end_symb=')', start_=0, return_list=False):
@@ -141,3 +144,37 @@ def modify_list(lst_, lst_start='(', lst_delim=',', lst_end=')', tuples_mode=Tru
         res = replace_sublist(res, fnd[0], fnd[1], tuple_)
         fnd = find_list(res, lst_start, lst_delim, lst_end)
     return res
+
+
+def filter_list(lst_, fltr_, include=False):
+    check_type(lst_)
+    lst = lst_
+    if type(fltr_) == str:
+        fltr = list()
+        fltr.append(fltr_)
+    else:
+        fltr = fltr_
+    res = list()
+    for each in lst:
+        if (each in fltr) == include:
+            res.append(each)
+    return res
+
+
+def get_sublist(lst_, start_symb, end_symb):
+    check_type(lst_)
+    st_list = find_all_obj(lst_, start_symb)
+    end_list = find_all_obj(lst_, end_symb)
+    if len(st_list) == 0 or len(end_list) == 0:
+        return None
+    for each in end_list:
+        st = max_(st_list, each)
+        return (st, each)
+
+
+if __name__ == '__main__':
+    lsta = [1,2,3,4,5,6,7,8,9,0]
+    lstb = [2,4,6,8,0]
+    print(filter_list(lsta, lstb, True))
+    list1 = ['(', '(', 1,3,')', 4, '(',5, ')', ')', ')']
+    print(get_sublist(list1, '(', ')'))
