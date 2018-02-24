@@ -1,4 +1,5 @@
 class BaseError(BaseException):
+    """Base class for all errors and exceptions"""
     def __init__(self, *args):
         self.args = args
 
@@ -23,9 +24,9 @@ class ListOperationError(BaseError):
 
 
 class SingleTon(object):
-
-    instance = {}
-    init = {}
+    """Синглтон с наследованием"""
+    instance = {}   # словарь для хранения всех инстансов класса
+    init = {}       # словарь для хранения инициализаций
 
     def __new__(cls, data):
         if cls not in cls.instance:
@@ -49,7 +50,7 @@ class SingleTon(object):
         raise SingleTonError(self.__class__, 'rewrite data', 'You can not rewrite data in static objects.')
 
 
-class Sequence:
+class Sequence:         # обычная очередь
     def __init__(self, value=0):
         self.value=value
 
@@ -61,7 +62,7 @@ class Sequence:
         self.value = 0
 
 
-class Stack:
+class Stack:        # обычный стек, с возможностью работы в режиме очереди
     def __init__(self, data=None, reverse_data=True, queue_mode=False):
         tmp = data or list()
         self.data = tmp

@@ -1,3 +1,4 @@
+"""Модуль описывающий работу кастомных выражений"""
 import dates as dt
 import operations as op
 import utility as ut
@@ -9,6 +10,7 @@ class ExpressionError(ut.BaseError):
     pass
 
 
+# # # КОНСТАНТЫ # # #
 DELIMITER_DEFAULT_LIST = ' \t\n'
 COMPARE_OPERATOR_LIST = ('<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'is none', 'is not none')
 BOOL_OPERATOR_LIST = ('and', 'or', 'not')
@@ -34,7 +36,7 @@ TYPE_COMPARE = {
     dt.datetime: 1,
     list: 100,
     type(None): -100
-}
+}   # словарь для приоретизации типов данных
 
 
 EXPRESSION_PRIORITY = {
@@ -45,24 +47,24 @@ EXPRESSION_PRIORITY = {
     5: ['not'],
     6: ['and'],
     7: ['or']
-}
+}   # словарь приоретизации операторов
 
 
-def get_right_type(left, right):
+def get_right_type(left, right):    # функция выбираем тип с высшим приоритетом (для кастомного приведения
     tp_left = type(left)
     tp_right = type(right)
-    if tp_right in (list, tuple):
+    if tp_right in (list, tuple):   # если получили список смотрим тип его первого элемента, подразумевая что данные там типизированы
         if len(right) > 0:
             tp_right = type(right[0])
         else:
-            tp_right = list
+            tp_right = list         # если список пустой - ставим типом список
     if tp_left == tp_right:
         return tp_left
-    if dt.datetime in (tp_right, tp_left):
+    if dt.datetime in (tp_right, tp_left):  # если получили дату\датувремя - вместо типов возвращаем функции приведения к ним
         return dt.to_datetime
     if dt.date in (tp_right, tp_left):
         return dt.to_date
-    rn_tp_left = TYPE_COMPARE[tp_left]
+    rn_tp_left = TYPE_COMPARE[tp_left]      # забираем из словаря ранги типов и выбираем нужный с минимальным рангом)
     rn_tp_right = TYPE_COMPARE[tp_right]
     if rn_tp_left == rn_tp_right:
         return tp_left
@@ -73,6 +75,12 @@ def get_right_type(left, right):
 
 
 class Expression:
+    """
+        Базовый класс для описания выражений:
+        инициализируется оператором и списком операндов:
+        для бинарных выражений операнды в инициализации указываем в порядке: левый, правый
+        класс формальный
+    """
     def __init__(self, operator, val1, val2=None):
         self.operator = operator.lower()
         self.dictionary = dict()
@@ -85,14 +93,14 @@ class Expression:
             self.right = val2
 
     @classmethod
-    def _get_val(cls, var):
+    def _get_val(cls, var): # функция для получения операндов: если это другое выражение - возвращаем его результат
         if isinstance(var, cls):
             return var.evaluate()
         return var
 
-    def get_val(self, var):
+    def get_val(self, var): # функция расширяет предыдущую проверяя в словаре наличие полученного операнда и подменяет его при обнаружении
         val = self._get_val(var)
-        if type(val) in (list, tuple): #дописать!!!
+        if type(val) in (list, tuple): # отдельно обрабатываем операнды списков
             res = list()
             for each in val:
                 if each in self.dictionary:
@@ -105,63 +113,63 @@ class Expression:
         return val
 
     def _un_eval(self):
-        pass
+        pass    # базовая функцию вычисления унарного выражения - описывается в детях класса
 
     def _bin_eval(self):
-        pass
+        pass    # базовая функция вычисления бинарного выражения - описывается в детях класса
 
-    def __evaluate__(self):
+    def __evaluate__(self): # функция, определяющая тип выражения и в зависимости от него вызывающая нужную базовую
         if self.type_ == UNARY_EXPRESSION:
             return self._un_eval()
         elif self.type_ == BINARY_EXPRESSION:
             return self._bin_eval()
 
-    def evaluate(self):
+    def evaluate(self): # обертка, возвращающая результат вычислений
         return self.__evaluate__()
 
-    def _un_reset(self, map):
+    def _un_reset(self, map):   # базовая функция для подмены словаря унарного выражения
         if isinstance(self.variable, Expression):
             self.variable.__reset__(map)
         self.dictionary = map
 
-    def _bin_reset(self, map):
+    def _bin_reset(self, map):  # базовая функция для подмены словаря бинарного выражения
         if isinstance(self.right, Expression):
             self.right.__reset__(map)
         if isinstance(self.left, Expression):
             self.left.__reset__(map)
         self.dictionary = map
 
-    def __reset__(self, map):
+    def __reset__(self, map):   # функция определяет тип выражения и вызывает нужную базовую функцию
         if self.type_ == UNARY_EXPRESSION:
             self._un_reset(map)
         else:
             self._bin_reset(map)
 
-    def reset(self, map):
-        if type(map) != dict:
+    def reset(self, map_):  # обертка, дополнительно проверяет что на вход получен именно словарь
+        if type(map_) != dict:
             raise ExpressionError('Error while set expression map: only dictionary allowed (get {})'.format(map))
-        self.__reset__(map)
+        self.__reset__(map_)
 
 
-class ArithmeticExpr(Expression):
+class ArithmeticExpr(Expression):   # класс, описывающий арифметические выражения
     def __init__(self, operator, val1, val2=None):
         super().__init__(operator, val1, val2)
-        if operator.lower() not in ARITHMETIC_OPERATOR_LIST:
+        if operator.lower() not in ARITHMETIC_OPERATOR_LIST:    # проверяем что оператор действительно арифметический
             raise ExpressionError('LogicExpr', 'incorrect operator', operator)
 
     def _bin_eval(self):
-        left = self.get_val(self.left)
+        left = self.get_val(self.left)  # получаем операнды
         right = self.get_val(self.right)
-        if type(left) != type(right):
+        if type(left) != type(right):   # сравниваем их типы
             type_ = get_right_type(left, right)
-            if type_ == type(None):
+            if type_ == type(None):     # если получили None - сразу его возвращаем
                 return None
-            left = type_(left)
+            left = type_(left)          # приводим типы (без обработки, если что-то некорректно - пусть падает)
             right = type_(right)
-        func = op.get_function(self.operator)
+        func = op.get_function(self.operator)   # получаем функцию для расчета выражения
         return func(left, right)
 
-    def _un_eval(self):
+    def _un_eval(self): # здесь дополнительно проверяем на наличие выражений, вычисляемых только со словарем
         if self.operator in EVAL_WITH_DIC_ONLY_OPER and not self.dictionary \
                 and not isinstance(self.variable, Expression) and type(self.variable) == str:
             raise ExpressionError('Can\'t resolve {0} operator without it\'s operand!')
@@ -170,34 +178,34 @@ class ArithmeticExpr(Expression):
         return func(var)
 
 
-class LogicExpr(Expression):
+class LogicExpr(Expression):    # класс для описания логических выражений
     def __init__ (self, operator, val1, val2=None):
         super().__init__(operator, val1, val2)
         if operator.lower() not in LOGIC_OPERATOR_LIST:
             raise ExpressionError('LogicExpr', 'incorrect operator', operator)
-        if operator in BOOL_OPERATOR_LIST:
+        if operator in BOOL_OPERATOR_LIST:  # дополнительно выявляем булевые операции и операции сравнения
             self.operation_type = BOOLEAN_OPERATION
         else:
             self.operation_type = COMPARING_OPERATION
 
-    def _un_eval(self):
+    def _un_eval(self): # здесь дополнительно проверяем на наличие словаря для функций которые без него невалидны
         if self.operator in EVAL_WITH_DIC_ONLY_OPER and not self.dictionary \
                 and not isinstance(self.variable, Expression) and type(self.variable) == str:
             raise ExpressionError('Can\'t resolve {0} operator without it\'s operand!'.format(self.operator))
         var = self.get_val(self.variable)
-        func = op.get_function(self.operator)
+        func = op.get_function(self.operator)   # функция для NOT сама проверяет тип операнда
         return func(var)
 
-    def _bin_eval(self):
+    def _bin_eval(self):    # расчет бинарных выражений
         left = self.get_val(self.left)
         right = self.get_val(self.right)
         if type(left) != type(right):
             type_ = get_right_type(left, right)
-            if type_ == type(None):
-                return None
+            if type_ == type(None):     # сравниваем типы, если получили None - возвращаем False
+                return False
             try:
                 left = type_(left)
-                if type(right) in (tuple, list):
+                if type(right) in (tuple, list):    # здесь дополнительно обрабатываем правые операнды-списки
                     right = list(type_(each) for each in right)
                 else:
                     right = type_(right)
@@ -209,7 +217,7 @@ class LogicExpr(Expression):
         return func(left, right)
 
 
-def get_expr_type(operator):
+def get_expr_type(operator):    # функция, возвращает нужный тип выражения
     if operator in LOGIC_OPERATOR_LIST:
         return LogicExpr
     elif operator in ARITHMETIC_OPERATOR_LIST:
@@ -217,21 +225,26 @@ def get_expr_type(operator):
 
 
 class ExpressionParser:
-    def __init__(self, str_):
+    """
+        Класс, основная функция которого - парсить строковые выражения и возвращать либо объект Expression, либо результат
+        Кэширует предыдущие результаты
+    """
+    def __init__(self, str_=None):
         self.str_ = str_.lower()
+        self.dictionary = dict()
 
-    def reset_str(self, str_):
-        self.str_ = str_.lower()
+    # def reset_str(self, str_):
+    #     self.str_ = str_.lower()
 
     @staticmethod
-    def _parse_simple_list(lst_):
+    def _parse_simple_list(lst_):   # функция, возвращает результат разбора простой строки (без скобочек)
         ls = lst_
-        for num in range(1, len(EXPRESSION_PRIORITY) + 1):
-            i = lo.find_obj(ls, EXPRESSION_PRIORITY[num], list_obj=True)
+        for num in range(1, len(EXPRESSION_PRIORITY) + 1):  # Пробегаемся по приоритетам операций
+            i = lo.find_obj(ls, EXPRESSION_PRIORITY[num], list_obj=True)    # ищем первое вхождение любой из операций с данным приоритетом
             while i != -1:
-                elem = ls[i]
-                expr_type = get_expr_type(elem)
-                if elem in op.UNARY_PRE_OPERATIONS:
+                elem = ls[i]                                # сохраняем элемент списка
+                expr_type = get_expr_type(elem)             # получаем тип операции
+                if elem in op.UNARY_PRE_OPERATIONS:         # забираем индексы операндов
                     val1_i = i - 1
                     val2_i = None
                 elif elem in op.UNARY_POST_OPERATIONS:
@@ -240,41 +253,47 @@ class ExpressionParser:
                 else:
                     val1_i = i - 1
                     val2_i = i + 1
-                val1 = ls[val1_i]
+                val1 = ls[val1_i]                           # собираем по индексам операнды
                 if val2_i is not None:
                     val2 = ls[val2_i]
                 else:
                     val2 = val2_i
-                expr = expr_type(elem, val1, val2)
-                if elem not in EVAL_WITH_DIC_ONLY_OPER:
+                expr = expr_type(elem, val1, val2)          # объявляем выражение
+                if elem not in EVAL_WITH_DIC_ONLY_OPER:     # пробуем его посчитать, если это операция не из несчитаемых без словаря
                     try:
                         expr = expr.evaluate()
                     except ExpressionError:
                         pass
-                if val1_i < i and val2_i is None:
+                if val1_i < i and val2_i is None:           # получаем индексы обработанных элеметов списка для замены на выражение
                     val2_i = i
                 elif val2_i is None:
                     val2_i = val1_i
                     val1_i = i
-                ls = lo.replace_sublist(ls, val1_i, val2_i, expr)
-                i = lo.find_obj(ls, EXPRESSION_PRIORITY[num], list_obj=True)
+                ls = lo.replace_sublist(ls, val1_i, val2_i, expr)   # подменяем их на выражение
+                i = lo.find_obj(ls, EXPRESSION_PRIORITY[num], list_obj=True)    # повторяем поиск
         return ls
 
     def parse_list(self, lst_):
         ls = lst_
-        coordinates = lo.get_sublist(ls, '(', ')')
+        coordinates = lo.get_sublist(ls, '(', ')')  # получаем координаты простого подмассива
         while coordinates is not None:
-            tmp = self._parse_simple_list(ls[coordinates[0] + 1: coordinates[1]])
-            ls = lo.replace_sublist(ls, coordinates[0], coordinates[1], *tmp)
-            coordinates = lo.get_sublist(ls, '(', ')')
-        ls = self._parse_simple_list(ls)
+            tmp = self._parse_simple_list(ls[coordinates[0] + 1: coordinates[1]])   # парсим его
+            ls = lo.replace_sublist(ls, coordinates[0], coordinates[1], *tmp)       # заменяем
+            coordinates = lo.get_sublist(ls, '(', ')')                              # ищем следующий
+        ls = self._parse_simple_list(ls)                                            # когда их не осталось - разбираем остатки
         return ls[0]
 
-    def parse(self, str_=None):
+    def parse(self, str_=None): # функция-парсер строки
         if str_ is None:
-            str_ = self.str_
-        splitted_str = ss.smart_split(str_, OPERATOR_LIST, DELIMITER_DEFAULT_LIST)
-        expr = self.parse_list(splitted_str)
+            str_ = self.str_ # если на входе не получили берем из внутренней переменной
+        else:
+            str_ = str_.lower() # если получили приводим к low-case
+            self.str_ = str_
+        if str_ in self.dictionary: # проверяем не смотрели ли мы уже такую строку
+            return self.dictionary[str_]
+        splitted_str = ss.smart_split(str_, OPERATOR_LIST, DELIMITER_DEFAULT_LIST)  # бьем строку на список
+        expr = self.parse_list(splitted_str)                                        # парсим список
+        self.dictionary[str_] = expr                                                # сохраняем результат
         return expr
 
 
@@ -303,7 +322,7 @@ if __name__ == '__main__':
     # print(c.left.right.left, c.left.right.right, c.left.right.operator)
     str_ = "sdf < 1"
     a.reset_str(str_)
-    c = a.parse()
+    c = a.parse(str_)
     print(c)
     c.reset({'sdf': 0})
     print(c.evaluate())

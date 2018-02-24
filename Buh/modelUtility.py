@@ -1,13 +1,4 @@
-import dates as dt
 import expressions as exp
-import operations as op
-import smartSplit as ss
-import utility as ut
-
-
-
-
-
 
 
 class Filter:
@@ -25,5 +16,3 @@ class Filter:
 
 if __name__ == '__main__':
     str = "1 = 0 and 1 not in '' or ('2018-01-01' < '2018-01-02') and self_name is none ('22', '33', '44')"
-    print(str)
-    print(ss.smart_split(str, exp.OPERATOR_LIST))

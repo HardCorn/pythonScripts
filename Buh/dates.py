@@ -1,4 +1,6 @@
-# import datetime as dt
+"""
+вся работа с датами
+"""
 from datetime import date
 from datetime import datetime
 
@@ -51,7 +53,7 @@ def date_to_str(date_, fmt=DATE_DEFAULT_FMT):
     return date.strftime(date_, refmt(fmt))
 
 
-def to_date(date, fmt=DATE_DEFAULT_FMT):
+def to_date(date, fmt=DATE_DEFAULT_FMT):        # прифведение кастомного типа к дате
     if type(date) == str:
         return str_to_date(date, fmt)
     elif type(date) == date:
@@ -62,7 +64,7 @@ def to_date(date, fmt=DATE_DEFAULT_FMT):
         raise ValueError('Transformation from {0} to date does not supported'.format(type(date)))
 
 
-def to_datetime(date, fmt=DATETIME_DEFAULT_FMT):
+def to_datetime(date, fmt=DATETIME_DEFAULT_FMT):        # приведение кастомного типа к датевремени
     if type(date) == str:
         return str_to_datetime(date, fmt)
     elif type(date) == date:
