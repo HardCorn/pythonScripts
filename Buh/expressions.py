@@ -60,6 +60,8 @@ def get_right_type(left, right):    # функция выбираем тип с 
             tp_right = list         # если список пустой - ставим типом список
     if tp_left == tp_right:
         return tp_left
+    if type(None) in (tp_left, tp_right):
+        return type(None)
     if dt.datetime in (tp_right, tp_left):  # если получили дату\датувремя - вместо типов возвращаем функции приведения к ним
         return dt.to_datetime
     if dt.date in (tp_right, tp_left):
@@ -225,10 +227,13 @@ class LogicExpr(Expression):    # класс для описания логич�
 
     def _bin_eval(self):    # расчет бинарных выражений
         left = self.get_val(self.left)
+        if (self.operator == 'and' and left is False) or (self.operator == 'or' and left is True):
+            return left
         right = self.get_val(self.right)
         if type(left) != type(right):
             type_ = get_right_type(left, right)
-            if type_ == type(None):     # сравниваем типы, если получили None - возвращаем False
+            print(type_)
+            if type(None) == type_:     # сравниваем типы, если получили None - возвращаем False
                 return False
             try:
                 left = type_(left)
@@ -237,9 +242,7 @@ class LogicExpr(Expression):    # класс для описания логич�
                 else:
                     right = type_(right)
             except Exception as exc:
-                raise ExpressionError('LogicExpr', 'evaluation', 'can\'t compare {0} and {1}'.format(
-                    left, right
-                ), exc)
+                raise ExpressionError('LogicExpr', 'evaluation', 'can\'t compare {0} and {1}'.format(left, right))
         func = op.get_function(self.operator)
         return func(left, right)
 

@@ -2,6 +2,7 @@ import os
 import datetime as dt
 import json as js
 import modelExceptions as er
+import modelUtility as mu
 
 """
     Данные в моделях лежат в текстовых файлах с разделителями и разрешение .data
@@ -18,7 +19,7 @@ import modelExceptions as er
 """
 
 #### Константы ####
-DEBUG = False
+DEBUG = True
 DATE_DEFAULT_FMT = 'YYYY-MM-DD'                         # формат по-умолчанию для типа дата
 DATETIME_DEFAULT_FMT = 'YYYY-MM-DD HH:MI:SS.SSSSSS'      # формат по-умолчанию для типа дата-время
 DAILY_PARTITION_FMT = 'YYYYMMDD'                        # формат дат для ежедневных партиций
@@ -454,8 +455,7 @@ class ModelFileWorker:
     def _read_partition(self, model_name, part_name=DEFAULT_SINGLE_PARTITION_VAL, sel_attrs=None, file_map=None,
                         filter_=None):
         """read all strings in partition
-            filtering structure (not available yet) planning do smth like this:
-            {filtering1: {filtering2: {filtering3: {filtering4: True}}, filtering5: True}}"""
+            filtering structure: modelUtility.Filter"""
         file_path = self.model_meta[DATA_PATH] + self.model_meta[model_name][PARTITION_FILES_KEY][part_name]
         delimiter = self.model_meta[model_name][FILE_DELIMITER_KEY]
         row_map = self._get_row_map(model_name)
@@ -464,7 +464,10 @@ class ModelFileWorker:
             file_map = self.get_file_map(model_name, no_read_header=True)
         for each in read_model_data(file_path, row_map, delimiter):
             if filter_ is not None:
-                res_list.append(each)   #здесь еще надо бы фильтровать данные
+                tmp = self._get_sel_attrs(each, file_map, sel_attrs)
+                filter_.set_row(tmp)
+                if filter_.get_result():
+                    res_list.append(tmp)   #здесь еще надо бы фильтровать данные
             else:
                 res_list.append(self._get_sel_attrs(each, file_map, sel_attrs))
         return res_list
@@ -496,6 +499,17 @@ class ModelFileWorker:
             raise er.ModelReadError('Unknown format for partitions_ parameter: only lists, tuples and strings supported')
         result = list()
         file_map = self.get_file_map(name, no_read_header=True)
+        if filter_ is not None:
+            fltr = filter_.try_get_result()
+            if fltr is True:
+                filter_ = None
+            elif fltr is False:
+                return []
+            else:
+                if selected is None:
+                    filter_.set_row_head(file_map.keys())
+                else:
+                    filter_.set_row_head(selected)
         for each in part_list:                      # читаем все найденные партиции, если их нет - вернем пустой список
             result += self._read_partition(name, each, filter_=filter_, file_map=file_map, sel_attrs=selected)
         return result   # если не прочли ни одной партиции - на выходе будет пустой список
@@ -850,7 +864,7 @@ if __name__ == '__main__' and DEBUG:
     # write_header(meta, 's')
     # read_header(meta, 's')
     # print(meta['s'])
-    a = ModelFileWorker('D:\\Users\\HardCorn\\Desktop\\python\\pyCharm\\myScripts\\Buh\\testing_data\\')
+    a = ModelFileWorker(note)
     print(a.del_model_files('New_model'))
     attrs_dict = {'key_field': 'str',
                   'info_field1': 'str',
@@ -872,12 +886,14 @@ if __name__ == '__main__' and DEBUG:
     a.delete_attribute('New_model', 'info_field2')
     a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000,11,10,5,30), None, ACTUALITY_DTTM_VALUE, 3.5])
     a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000, 11, 10, 5, 30), dt.date(2018, 4, 1), ACTUALITY_DTTM_VALUE, 321365654438433452456475864674.5123456789])
-    a.insert_simple_data('New_model', ['k6', dt.date(2017,5,14)], ['key_field', 'date_field', 'lll'])
+    a.insert_simple_data('New_model', ['k6', dt.date(2017,5,14)], ['key_field', 'date_field'])
     a.modify_partition('New_model', 'remove', 'date_field')
     a.modify_partition('New_model', 'add', 'date_field', 'YYYYMMDD')
     a.modify_partition('New_model', 'reformat', 'date_field','YYYYMM')
     sel = ['date_field', 'floating_data', 'key_field']
-    print(a.read_model_data('New_model', selected=sel))
+    fltr = mu.Filter()
+    fltr.set_clause("date_field > '2018-01-01'")
+    print(a.read_model_data('New_model', selected=sel, filter_=fltr))
     print(a.read_model_data('New_model'))
     print(a.get_file_map('New_model'))
     print(a._get_row_map('New_model'))
