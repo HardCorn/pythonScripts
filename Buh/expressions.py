@@ -232,7 +232,6 @@ class LogicExpr(Expression):    # класс для описания логич�
         right = self.get_val(self.right)
         if type(left) != type(right):
             type_ = get_right_type(left, right)
-            print(type_)
             if type(None) == type_:     # сравниваем типы, если получили None - возвращаем False
                 return False
             try:

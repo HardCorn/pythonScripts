@@ -11,7 +11,7 @@
   </component>
   <component name="FileEditorManager">
     <leaf SIDE_TABS_SIZE_LIMIT_KEY="300">
-      <file leaf-file-name="modelFile.py" pinned="false" current-in-tab="true">
+      <file leaf-file-name="modelFile.py" pinned="false" current-in-tab="false">
         <entry file="file://$PROJECT_DIR$/modelFile.py">
           <provider selected="true" editor-type-id="text-editor">
             <state relative-caret-position="315">
@@ -67,11 +67,11 @@
           </provider>
         </entry>
       </file>
-      <file leaf-file-name="expressions.py" pinned="false" current-in-tab="false">
+      <file leaf-file-name="expressions.py" pinned="false" current-in-tab="true">
         <entry file="file://$PROJECT_DIR$/expressions.py">
           <provider selected="true" editor-type-id="text-editor">
-            <state relative-caret-position="155">
-              <caret line="63" column="24" lean-forward="false" selection-start-line="63" selection-start-column="24" selection-end-line="63" selection-end-column="24" />
+            <state relative-caret-position="134">
+              <caret line="233" column="47" lean-forward="false" selection-start-line="233" selection-start-column="47" selection-end-line="233" selection-end-column="47" />
               <folding>
                 <element signature="e#52#70#0" expanded="true" />
               </folding>
@@ -136,8 +136,8 @@
         <option value="$PROJECT_DIR$/smartSplit.py" />
         <option value="$PROJECT_DIR$/modelExceptions.py" />
         <option value="$PROJECT_DIR$/modelUtility.py" />
-        <option value="$PROJECT_DIR$/expressions.py" />
         <option value="$PROJECT_DIR$/modelFile.py" />
+        <option value="$PROJECT_DIR$/expressions.py" />
       </list>
     </option>
   </component>
@@ -349,7 +349,7 @@
       <breakpoints>
         <line-breakpoint enabled="true" suspend="THREAD" type="python-line">
           <url>file://$PROJECT_DIR$/expressions.py</url>
-          <line>357</line>
+          <line>356</line>
           <option name="timeStamp" value="8" />
         </line-breakpoint>
       </breakpoints>
@@ -645,16 +645,6 @@
         </state>
       </provider>
     </entry>
-    <entry file="file://$PROJECT_DIR$/expressions.py">
-      <provider selected="true" editor-type-id="text-editor">
-        <state relative-caret-position="155">
-          <caret line="63" column="24" lean-forward="false" selection-start-line="63" selection-start-column="24" selection-end-line="63" selection-end-column="24" />
-          <folding>
-            <element signature="e#52#70#0" expanded="true" />
-          </folding>
-        </state>
-      </provider>
-    </entry>
     <entry file="file://$PROJECT_DIR$/modelExceptions.py">
       <provider selected="true" editor-type-id="text-editor">
         <state relative-caret-position="136">
@@ -679,6 +669,16 @@
           <caret line="866" column="0" lean-forward="false" selection-start-line="866" selection-start-column="0" selection-end-line="866" selection-end-column="0" />
           <folding>
             <element signature="e#0#9#0" expanded="true" />
+          </folding>
+        </state>
+      </provider>
+    </entry>
+    <entry file="file://$PROJECT_DIR$/expressions.py">
+      <provider selected="true" editor-type-id="text-editor">
+        <state relative-caret-position="134">
+          <caret line="233" column="47" lean-forward="false" selection-start-line="233" selection-start-column="47" selection-end-line="233" selection-end-column="47" />
+          <folding>
+            <element signature="e#52#70#0" expanded="true" />
           </folding>
         </state>
       </provider>
