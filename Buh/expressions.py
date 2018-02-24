@@ -92,6 +92,33 @@ class Expression:
             self.left = val1
             self.right = val2
 
+    def _bin_to_str(self):
+        if isinstance(self.left, Expression):
+            str_left = '(' + self.left.__str__() + ')'
+        else:
+            str_left = str(self.left)
+        if isinstance(self.right, Expression):
+            str_right = '(' + self.right.__str__() + ')'
+        else:
+            str_right = str(self.right)
+        return str_left + ' ' + self.operator + ' ' + str_right
+
+    def _un_to_str(self):
+        if isinstance(self.variable, Expression):
+            var_str = '(' + self.variable.__str__() + ')'
+        else:
+            var_str = str(self.variable)
+        if self.operator in op.UNARY_PRE_OPERATIONS:
+            return var_str + ' ' + self.operator
+        else:
+            return self.operator + ' ' + var_str
+
+    def __str__(self):
+        if self.operator in op.UNARY_OPERATIONS:
+            return self._un_to_str()
+        else:
+            return self._bin_to_str()
+
     @classmethod
     def _get_val(cls, var): # функция для получения операндов: если это другое выражение - возвращаем его результат
         if isinstance(var, cls):
@@ -230,7 +257,10 @@ class ExpressionParser:
         Кэширует предыдущие результаты
     """
     def __init__(self, str_=None):
-        self.str_ = str_.lower()
+        if str_ is not None:
+            self.str_ = str_.lower()
+        else:
+            self.str_ = ''
         self.dictionary = dict()
 
     # def reset_str(self, str_):
@@ -300,30 +330,35 @@ class ExpressionParser:
 
 
 if __name__ == '__main__':
-    a = None
-    b = 'field'
-    c = LogicExpr('and', a, b)
-    dic = {'field': True}
-    c.reset(dic)
-    print(c.evaluate())
-    print(c.left, c.get_val(c.right))
+    # a = None
+    # b = 'field'
+    # c = LogicExpr('and', a, b)
+    # dic = {'field': True}
+    # c.reset(dic)
+    # print(c.evaluate())
+    # print(c.left, c.get_val(c.right))
     str_ = "1 = 0 and 1 not in ('', 0) or ('2018-01-01' < '2018-01-02') and none is none"
-    print(ss.smart_split(str_, OPERATOR_LIST, ' \t\n'))
-    a = ExpressionParser(str_)
-    c = a.parse()
-    dic = {'': 1, 'none': None}
-    c.reset(dic)
-    print(c.operator, c.left, c.right)
-    print(c.evaluate())
-    print(c.left.operator, c.left.left, c.left.right)
+    # print(ss.smart_split(str_, OPERATOR_LIST, ' \t\n'))
+    a = ExpressionParser()
+    # c = a.parse()
+    # dic = {'': 1, 'none': None}
+    # c.reset(dic)
+    # print(c.operator, c.left, c.right)
+    # print(c.evaluate())
+    # print(c.left.operator, c.left.left, c.left.right)
     # print(c.evaluate())
     # print(c.right, c.left, c.operator)
     # print(c.left.left, c.left.right, c.left.operator)
     # print(c.left.right.left, c.left.right.right, c.left.right.operator)
-    str_ = "sdf < 1"
-    a.reset_str(str_)
-    c = a.parse(str_)
-    print(c)
-    c.reset({'sdf': 0})
-    print(c.evaluate())
+    # str_ = "sdf < 1"
+    # c = a.parse(str_)
+    # d = a.parse(str_)
+    # print(c)
+    # c.reset({'sdf': 0})
+    # str_ =  ' 3 + 2 * 6 ** 2 < 8 ** 4 and not (20 > 5) or field > 2 + 2'
+    b = a.parse(str_)
+    print(b)
+    b.reset({'': 5, 'none': None})
+    print(b, b.evaluate(), b)
+    # print(c.evaluate(), c)
 

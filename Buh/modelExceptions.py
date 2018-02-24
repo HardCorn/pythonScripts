@@ -5,6 +5,10 @@ class BaseModelException(utility.BaseError):
     pass
 
 
+class FilterException(BaseModelException):
+    pass
+
+
 class ModelFileException(BaseModelException):
     pass
 

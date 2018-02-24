@@ -50,7 +50,7 @@ def date_to_str(date, fmt=DATE_DEFAULT_FMT):
 
 
 def str_to_type(str_, convert_types=True, inner_quotes=True, date_format=DATE_DEFAULT_FMT,
-                datetime_format=DATETIME_DEFAULT_FMT):
+                datetime_format=DATETIME_DEFAULT_FMT):  # Пытается привести строку к разным типам данных
     if convert_types:
         if str_.lower() == 'true':
             return True
@@ -68,91 +68,90 @@ def str_to_type(str_, convert_types=True, inner_quotes=True, date_format=DATE_DE
             return str_to_datetime(str_.strip('\''), datetime_format)
         except Exception:
             pass
-    if inner_quotes:
+    if inner_quotes:    # удаляем концевые кавычки и подменяем внутренние двойные кавычки на одинарные, если стоит соотв. флаг
         return str_.strip('\'').replace('"',"'")
-    else:
+    else:               # иначе просто удаляем концевые кавычки
         return str_.strip('\'')
 
 
-def is_quoted(str_):
+def is_quoted(str_):        # проверка на заковыченную строку
     return str_.count('\'') == 2 and str_[0] == '\'' and str_[len(str_) - 1] == '\''
 
 
-def _symbol_sort(lst):
+def _symbol_sort(lst):      # сортировка символов в порядке: кол-во слов по убыванию количество букв выражении по убыванию
     res = dict()    
-    word_splitter = max(len(each) for each in lst) + 1
-    for each in lst:
+    word_splitter = max(len(each) for each in lst) + 1  # переменная множитель колличества слов (длина максимальной строки + 1)
+    for each in lst:                                    # наполняем временный словарь
         key = word_splitter * each.count(' ') + len(each)
         if key not in res:
             res[key] = list()
         res[key].append(each)
-    tmp_sort = list(res.keys())
+    tmp_sort = list(res.keys())                         # забираем и сортируем ключи по убыванию
     tmp_sort.sort(reverse=True)
     res_list = list()
-    for each in tmp_sort:
+    for each in tmp_sort:                               # наполняем результирующий список по отсортированным ключам
         res_list += res[each]
     return res_list
     
 
-def _str_quotation_split(str_, inner_quotes=True):
+def _str_quotation_split(str_, inner_quotes=True):      # дробилка одной строки на подстроки заключенные в кавычках - и без них
     fnd = str_.find('\'')
     res = list()
-    if fnd == -1:
+    if fnd == -1:                           # если не нашли ни одной кавычки - возвращаем исходную строку, обернутую в список
         res.append(str_)
         return res
-    tmp_word = ''
-    counter = 0
+    tmp_word = ''       # буффер для слов до открывающей кавычки
+    counter = 0         # счетчик найденных кавычек
     while fnd != -1:
-        counter += 1
-        if counter % 2 == 1:
+        counter += 1    # нашли новую кавычку
+        if counter % 2 == 1:        # если нечетная - открывающая - сохраняем подстроку до нее и обрезаем строку до этой кавычки
             tmp_word = str_[:fnd].strip()
             str_ = str_[fnd + 1:]
-        else:
+        else:                       # если четная (необязательно закрывающая, возможно и экранированная внутри)
             if inner_quotes:
-                if fnd + 1 < len(str_) - 1 and str_[fnd + 1] == "'":
-                    counter += 1
-                    str_ = str_[:fnd] + '"' + (str_[fnd + 1:][1:])
-                else:
-                    res.append(tmp_word)
-                    res.append("'" + str_[:fnd] + "'")
-                    str_ = str_[fnd + 1:]
-            else:
+                if fnd + 1 < len(str_) - 1 and str_[fnd + 1] == "'": # если следующая за ней тоже кавычка - то это экран
+                    counter += 1                                        # инкрементируем счетчик
+                    str_ = str_[:fnd] + '"' + (str_[fnd + 1:][1:])      # аккуратно заменяем две кавычки на двойную кавычку
+                else:                                                   # если за ней нет кавычек - то это закрывающая
+                    res.append(tmp_word)                                # пишем в результирующий список слово до кавычки
+                    res.append("'" + str_[:fnd] + "'")                  # пишем слово в кавычках дополнительно оборачивая его в кавычки
+                    str_ = str_[fnd + 1:]                               # обрезаем строку закрывающей кавычкой
+            else:                                                       # если не обрабатываем внутренние кавычки
                 res.append(tmp_word)
                 res.append("'" + str_[:fnd] + "'")
                 str_ = str_[fnd + 1:]
-                
-        fnd = str_.find("'")
-    if counter % 2 != 0:
+        fnd = str_.find("'")                                            # ищем следующую кавычку
+    if counter % 2 != 0:                                                # если в итоге нашли нечетное число кавычек - падаем
         raise ValueError('SmartSplit: string qoutation splitter error: Unclosed quotation mark in {}'.format(str_))
-    if str_ != '':
+    if str_ != '':                                                      # дописываем строку после последней кавычки
         res.append(str_)
     return res
 
     
-def _str_split(str_, symbol, symbol_list, delimiter=False, pass_qouted=True):
-    if is_quoted(str_) and pass_qouted:
+def _str_split(str_, symbol, symbol_list, delimiter=False, pass_qouted=True):   # разрезание строки по символу
+    if is_quoted(str_) and pass_qouted:         # если получили строку в кавычках - просто возвращаем ее
         return str_
-    if symbol_list is not None:
+    if symbol_list is not None:                 # если получили один из символов - так же возвращаем его
         if str_ in symbol_list:
             return str_
-    if delimiter:
+    if delimiter:                               # если работаем в режиме простого разделителя - пользуемсявстроенной функцией
         return str_.split(symbol)
     else:
         tmp_str = str_
         result = list()
-        fnd = tmp_str.find(symbol)
+        fnd = tmp_str.find(symbol)              # ищем символ в строке
         while fnd != -1:
-            if fnd != 0:
+            if fnd != 0:                        # если он не в начале строки пишем начало строки до символа
                 result.append(tmp_str[:fnd])
-            result.append(symbol)
-            tmp_str = tmp_str[fnd + len(symbol):]
-            fnd = tmp_str.find(symbol)
-        if tmp_str != '':
+            result.append(symbol)               # приписываем сам символ
+            tmp_str = tmp_str[fnd + len(symbol):]   # обрезаем строку
+            fnd = tmp_str.find(symbol)          # снова ищем
+        if tmp_str != '':                       # если после последнего символа осталось что-то - дописываем в конец
             result.append(tmp_str)
         return result
         
 
-def _obj_split(obj_, symbol, symbol_list, delimiter=False, pass_qouted=True):
+def _obj_split(obj_, symbol, symbol_list, delimiter=False, pass_qouted=True):   # обертка разрезалки строки - работает со строками и списками строк
     if type(obj_) == str:
         return _str_split(obj_, symbol, symbol_list, delimiter, pass_qouted)
     elif type(obj_) == list:
@@ -168,7 +167,7 @@ def _obj_split(obj_, symbol, symbol_list, delimiter=False, pass_qouted=True):
         raise ValueError('SmartSplit: object splitter error: Only strings and lists are allowed!')
 
 
-def _str_list_cleaner(obj_):
+def _str_list_cleaner(obj_):            # очиститель списка - удаляет концевые пробелы/служебные символы и пустые элементы
     res = list()
     for each in obj_:
         if each.strip() != '':
@@ -176,7 +175,7 @@ def _str_list_cleaner(obj_):
     return res
 
 
-def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_format):
+def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_format): # обертка преобразователя строки к стандартным типам
     result = list()
     for each in obj_:
         result.append(str_to_type(each, convert_types, inner_quotes, date_format, datetime_format))
@@ -185,35 +184,54 @@ def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_f
 
 def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=True,
                 do_clean=True, convert_types=True, convert_tuples=True, date_format=DATE_DEFAULT_FMT,
-                datetime_format=DATETIME_DEFAULT_FMT):
+                datetime_format=DATETIME_DEFAULT_FMT):  # сама разрезалка
+    """
+    Функция разбирает строку на список:
+        а) выражений в кавычках (приводятся к строкам, экранированные кавычки: '' внутри приводятся к обычным кавычкам
+        б) элементов переданных в список символов(если таковые в строке были)
+        в) всего остального с приведенными типами данных, включая приведение к кортежам
+    при этом не изменяя порядок вхождения элементов в исходную строку и очищая каждый элемент от лишних
+    концевых пробелов и служебных символов
+    :param str_: исходная строка
+    :param symbol_list: список элементов-разделителей которые необходимо оставить в результирующем списке; по умолчанию - None
+    :param delimiter_list: список символов-разделителей - можно передавать строкой, списком, кортежем - не сохраняются в итоговом списке; по умолчанию - None
+    :param do_quotation_split: флаг сохранения заковыченных элементов отдельными элементами списка; по умолчанию - True
+    :param do_clean: флаг очищения итогового списка от пустых элементов и служебных символов/концевых пробелов; по умолчанию - True
+    :param convert_types: флаг необходимости преобразования базовых типов данных(int, float, date, datetime, bool); по умолчанию - True
+    :param convert_tuples: флаг необходимости преобразования структур похожих на кортежи к кортежам внутри списка; по умолчанию - True
+    :param date_format: формат представления дат в строке; по умолчанию - YYYY-MM-DD
+    :param datetime_format: формат представления даты-времени в строке; по умолчанию - YYYY-MM-DD HH:MI:SS.SSSSSS
+    :return: возвращает список
+    """
     if not do_quotation_split:
         inner_quotes = False
     else:
         inner_quotes = True
     if do_quotation_split and (type(symbol_list) in (str, list, tuple) and len(symbol_list) > 0
-            or symbol_list is None):
+            or symbol_list is None):    # если неоходимо разрезать по кавычкам - режем
         result = _str_quotation_split(str_, inner_quotes)
     else:
         result = str_
-    if symbol_list is not None:
-        if type(symbol_list) == str:
+    if symbol_list is not None:         # если на входе получили список символов
+        if type(symbol_list) == str:    # строку преобразуем к списку
             tmp = list()
-            tmp.append(symbol_list)
+            if len(symbol_list) > 0:
+                tmp.append(symbol_list)
             symbol_list = tmp
         if len(symbol_list) != 0:
-            sorted_list = _symbol_sort(symbol_list)
-            for symbol in sorted_list:
+            sorted_list = _symbol_sort(symbol_list) # сортируем символы
+            for symbol in sorted_list:              # по полученному списку режем строку
                 result = _obj_split(result, symbol, symbol_list)
-        else:
+        else:                                       # если на входе получили пустую строку/пустой список - просто делаем split()
             result = result.split()
-    if delimiter_list is not None:
+    if delimiter_list is not None:                  # если получили список разделителей - нарезаем еще и по ним
         for each in delimiter_list:
             result = _obj_split(result, each, symbol_list, delimiter=True)
-    if do_clean and type(result) == list:
+    if do_clean and type(result) == list:           # чистим список
         result = _str_list_cleaner(result)
-    if (convert_types or inner_quotes) and type(result) == list :
+    if (convert_types or inner_quotes) and type(result) == list :   # преобразуем элементы списка
         result = _str_list_to_type(result, convert_types, inner_quotes, date_format, datetime_format)
-    if convert_tuples:
+    if convert_tuples:                              # преобразуем подсписки формата ['(', 1, ',', ..., ')'] к кортежам
         result = lo.modify_list(result)
     return result
 
