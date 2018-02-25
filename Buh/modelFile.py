@@ -464,10 +464,8 @@ class ModelFileWorker:
             file_map = self.get_file_map(model_name, no_read_header=True)
         for each in read_model_data(file_path, row_map, delimiter):
             if filter_ is not None:
-                tmp = self._get_sel_attrs(each, file_map, sel_attrs)
-                filter_.set_row(tmp)
-                if filter_.get_result():
-                    res_list.append(tmp)   #здесь еще надо бы фильтровать данные
+                if filter_.resolve(each):
+                    res_list.append(self._get_sel_attrs(each, file_map, sel_attrs))   #здесь еще надо бы фильтровать данные
             else:
                 res_list.append(self._get_sel_attrs(each, file_map, sel_attrs))
         return res_list
@@ -500,16 +498,13 @@ class ModelFileWorker:
         result = list()
         file_map = self.get_file_map(name, no_read_header=True)
         if filter_ is not None:
-            fltr = filter_.try_get_result()
+            fltr = filter_.try_resolve()
             if fltr is True:
                 filter_ = None
             elif fltr is False:
                 return []
             else:
-                if selected is None:
-                    filter_.set_row_head(file_map.keys())
-                else:
-                    filter_.set_row_head(selected)
+                filter_.set_row_head(list(file_map.keys()))
         for each in part_list:                      # читаем все найденные партиции, если их нет - вернем пустой список
             result += self._read_partition(name, each, filter_=filter_, file_map=file_map, sel_attrs=selected)
         return result   # если не прочли ни одной партиции - на выходе будет пустой список
@@ -892,7 +887,7 @@ if __name__ == '__main__' and DEBUG:
     a.modify_partition('New_model', 'reformat', 'date_field','YYYYMM')
     sel = ['date_field', 'floating_data', 'key_field']
     fltr = mu.Filter()
-    fltr.set_clause("date_field > '2018-01-01'")
+    fltr.set_clause("key_field not in ('k1', 'k2')")
     print(a.read_model_data('New_model', selected=sel, filter_=fltr))
     print(a.read_model_data('New_model'))
     print(a.get_file_map('New_model'))

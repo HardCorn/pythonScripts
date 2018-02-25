@@ -3,6 +3,7 @@
 """
 from datetime import date
 from datetime import datetime
+import datetime as dt
 
 
 DEBUG = False
@@ -56,9 +57,9 @@ def date_to_str(date_, fmt=DATE_DEFAULT_FMT):
 def to_date(date, fmt=DATE_DEFAULT_FMT):        # прифведение кастомного типа к дате
     if type(date) == str:
         return str_to_date(date, fmt)
-    elif type(date) == date:
+    elif type(date) in (date, dt.date):
         return date
-    elif type(date) == datetime:
+    elif type(date) in (datetime, dt.datetime):
         return date.date()
     else:
         raise ValueError('Transformation from {0} to date does not supported'.format(type(date)))
@@ -67,9 +68,9 @@ def to_date(date, fmt=DATE_DEFAULT_FMT):        # прифведение кас�
 def to_datetime(date, fmt=DATETIME_DEFAULT_FMT):        # приведение кастомного типа к датевремени
     if type(date) == str:
         return str_to_datetime(date, fmt)
-    elif type(date) == date:
+    elif type(date) in (date, dt.date):
         return datetime(date.year, date.month, date.day)
-    elif type(date) == datetime:
+    elif type(date) in (datetime, dt.datetime):
         return date
     else:
         raise ValueError('Transformation from {0} to date does not supported'.format(type(date)))

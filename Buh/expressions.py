@@ -3,6 +3,7 @@ import dates as dt
 import operations as op
 import utility as ut
 import smartSplit as ss
+from smartSplit import UnConvString as Operand
 import listOperations as lo
 
 
@@ -132,13 +133,27 @@ class Expression:
         if type(val) in (list, tuple): # отдельно обрабатываем операнды списков
             res = list()
             for each in val:
-                if each in self.dictionary:
-                    res.append(self.dictionary[each])
+                if isinstance(each, Operand):
+                    try:
+                        res.append(self.dictionary[each])
+                    except KeyError:
+                        raise ExpressionError('Operand \'{0}\' not found in the dictionary \'{1}\''.format(
+                            each, self.dictionary
+                        ))
+                elif isinstance(each, ss.SmartSplitString):
+                    res.append(str(each))
                 else:
                     res.append(each)
             val = tuple(res)
-        elif val in self.dictionary:
-            return self.dictionary[val]
+        elif isinstance(val, Operand):
+            try:
+                return self.dictionary[val]
+            except KeyError:
+                raise ExpressionError('Operand \'{0}\' not found in the dictionary \'{1}\''.format(
+                    val, self.dictionary
+                ))
+        elif isinstance(val, ss.SmartSplitString):
+            val = str(val)
         return val
 
     def _un_eval(self):
@@ -198,10 +213,7 @@ class ArithmeticExpr(Expression):   # класс, описывающий ари�
         func = op.get_function(self.operator)   # получаем функцию для расчета выражения
         return func(left, right)
 
-    def _un_eval(self): # здесь дополнительно проверяем на наличие выражений, вычисляемых только со словарем
-        if self.operator in EVAL_WITH_DIC_ONLY_OPER and not self.dictionary \
-                and not isinstance(self.variable, Expression) and type(self.variable) == str:
-            raise ExpressionError('Can\'t resolve {0} operator without it\'s operand!')
+    def _un_eval(self):
         var = self.get_val(self.variable)
         func = op.get_function(self.operator)
         return func(var)
@@ -217,10 +229,7 @@ class LogicExpr(Expression):    # класс для описания логич�
         else:
             self.operation_type = COMPARING_OPERATION
 
-    def _un_eval(self): # здесь дополнительно проверяем на наличие словаря для функций которые без него невалидны
-        if self.operator in EVAL_WITH_DIC_ONLY_OPER and not self.dictionary \
-                and not isinstance(self.variable, Expression) and type(self.variable) == str:
-            raise ExpressionError('Can\'t resolve {0} operator without it\'s operand!'.format(self.operator))
+    def _un_eval(self):
         var = self.get_val(self.variable)
         func = op.get_function(self.operator)   # функция для NOT сама проверяет тип операнда
         return func(var)
@@ -240,7 +249,7 @@ class LogicExpr(Expression):    # класс для описания логич�
                     right = list(type_(each) for each in right)
                 else:
                     right = type_(right)
-            except Exception as exc:
+            except Exception:
                 raise ExpressionError('LogicExpr', 'evaluation', 'can\'t compare {0} and {1}'.format(left, right))
         func = op.get_function(self.operator)
         return func(left, right)
@@ -253,21 +262,11 @@ def get_expr_type(operator):    # функция, возвращает нужн�
         return ArithmeticExpr
 
 
-class ExpressionParser:
+class ExpressionParser(ut.SingleTon):
     """
         Класс, основная функция которого - парсить строковые выражения и возвращать либо объект Expression, либо результат
         Кэширует предыдущие результаты
     """
-    def __init__(self, str_=None):
-        if str_ is not None:
-            self.str_ = str_.lower()
-        else:
-            self.str_ = ''
-        self.dictionary = dict()
-
-    # def reset_str(self, str_):
-    #     self.str_ = str_.lower()
-
     @staticmethod
     def _parse_simple_list(lst_):   # функция, возвращает результат разбора простой строки (без скобочек)
         ls = lst_
@@ -291,11 +290,10 @@ class ExpressionParser:
                 else:
                     val2 = val2_i
                 expr = expr_type(elem, val1, val2)          # объявляем выражение
-                if elem not in EVAL_WITH_DIC_ONLY_OPER:     # пробуем его посчитать, если это операция не из несчитаемых без словаря
-                    try:
-                        expr = expr.evaluate()
-                    except ExpressionError:
-                        pass
+                try:
+                    expr = expr.evaluate()
+                except ExpressionError:
+                    pass
                 if val1_i < i and val2_i is None:           # получаем индексы обработанных элеметов списка для замены на выражение
                     val2_i = i
                 elif val2_i is None:
@@ -315,20 +313,26 @@ class ExpressionParser:
         ls = self._parse_simple_list(ls)                                            # когда их не осталось - разбираем остатки
         return ls[0]
 
-    def parse(self, str_=None): # функция-парсер строки
-        if str_ is None:
-            str_ = self.str_ # если на входе не получили берем из внутренней переменной
-        else:
-            str_ = str_.lower() # если получили приводим к low-case
-            self.str_ = str_
-        if str_ in self.dictionary: # проверяем не смотрели ли мы уже такую строку
-            return self.dictionary[str_]
+    def parse(self, str_): # функция-парсер строки
+        if type(str_) != str:
+            raise ExpressionError('Parsing string', "can't parse this type ({}) only str allowed!".format(type(str_)))
+        if not str_:
+            raise ExpressionError('Parsing string', "can't parse empty string!")
+        str_ = str_.lower() # если получили приводим к low-case
+        self.str_ = str_
+        if str_ in self.data: # проверяем не смотрели ли мы уже такую строку
+            return self.data[str_]
         splitted_str = ss.smart_split(str_, OPERATOR_LIST, DELIMITER_DEFAULT_LIST)  # бьем строку на список
         expr = self.parse_list(splitted_str)                                        # парсим список
-        self.dictionary[str_] = expr                                                # сохраняем результат
+        self.data[str_] = expr                                                # сохраняем результат
         return expr
 
 
+GLOBAL_PARSER = ExpressionParser()
+
+
+def parse(str_):
+    return GLOBAL_PARSER.parse(str_)
 
 
 if __name__ == '__main__':
@@ -339,7 +343,10 @@ if __name__ == '__main__':
     # c.reset(dic)
     # print(c.evaluate())
     # print(c.left, c.get_val(c.right))
-    str_ = "1 = 0 and 1 not in ('', 0) or ('2018-01-01' < '2018-01-02') and none is none"
+    str_ = "1 = 0 and 1 not in ('', 0) or ('2018-01-01' < '2018-01-02') and none is none and 1 not in ('', 0)"
+    # test = ss.smart_split(str_, OPERATOR_LIST, DELIMITER_DEFAULT_LIST)
+    # for each in test:
+    #     print(each, ': ', type(each))
     # print(ss.smart_split(str_, OPERATOR_LIST, ' \t\n'))
     a = ExpressionParser()
     # c = a.parse()
@@ -360,6 +367,7 @@ if __name__ == '__main__':
     # str_ =  ' 3 + 2 * 6 ** 2 < 8 ** 4 and not (20 > 5) or field > 2 + 2'
     b = a.parse(str_)
     print(b)
+    # print(b.evaluate())
     b.reset({'': 5, 'none': None})
     print(b, b.evaluate(), b)
     # print(c.evaluate(), c)

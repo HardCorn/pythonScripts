@@ -28,17 +28,17 @@ class SingleTon(object):
     instance = {}   # словарь для хранения всех инстансов класса
     init = {}       # словарь для хранения инициализаций
 
-    def __new__(cls, data):
+    def __new__(cls, data=None):
         if cls not in cls.instance:
             cls.instance[cls] = object.__new__(cls)
             cls.init[cls] = False
             # print('new instance', cls.instance)
         return cls.instance[cls]
 
-    def __init__(self, data):
+    def __init__(self, data=None):
         try:
             if not SingleTon.init[self.__class__]:
-                self.data = data
+                self.data = data or dict()
                 SingleTon.init[self.__class__] = True
         except:
             raise SingleTonError(f'Unknown error. {self.__class__} has new instance, but not in init dictionary')

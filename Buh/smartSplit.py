@@ -1,5 +1,21 @@
-import datetime as dt
+import dates as dt
 import listOperations as lo
+
+
+class SmartSplitString(str):
+    pass
+
+
+class Symbol(SmartSplitString):  # Абстрактный класс к которому приводим символы
+    pass
+
+
+class UnConvString(SmartSplitString):    # абстрактный класс к которому приводим неконвертируемые строки
+    pass
+
+
+class QuotedString(SmartSplitString):    # абстактный класс к которому приводим строки в кавычках
+    pass
 
 
 DATE_DEFAULT_FMT = 'YYYY-MM-DD'                         # формат по-умолчанию для типа дата
@@ -50,7 +66,7 @@ def date_to_str(date, fmt=DATE_DEFAULT_FMT):
 
 
 def str_to_type(str_, convert_types=True, inner_quotes=True, date_format=DATE_DEFAULT_FMT,
-                datetime_format=DATETIME_DEFAULT_FMT):  # Пытается привести строку к разным типам данных
+                datetime_format=DATETIME_DEFAULT_FMT, symbol_list=None):  # Пытается привести строку к разным типам данных
     if convert_types:
         if str_.lower() == 'true':
             return True
@@ -68,6 +84,17 @@ def str_to_type(str_, convert_types=True, inner_quotes=True, date_format=DATE_DE
             return str_to_datetime(str_.strip('\''), datetime_format)
         except Exception:
             pass
+        if is_quoted(str_):
+            if inner_quotes:
+                return QuotedString(str_.strip("'").replace('"', "'"))
+            else:
+                return QuotedString(str_.strip("'"))
+        elif type(symbol_list) in (tuple, list)and str_ in symbol_list:
+            return Symbol(str_)
+        elif type(symbol_list) == str and str_ == symbol_list:
+            return Symbol(str_)
+        else:
+            return UnConvString(str_)
     if inner_quotes:    # удаляем концевые кавычки и подменяем внутренние двойные кавычки на одинарные, если стоит соотв. флаг
         return str_.strip('\'').replace('"',"'")
     else:               # иначе просто удаляем концевые кавычки
@@ -175,10 +202,10 @@ def _str_list_cleaner(obj_):            # очиститель списка - у
     return res
 
 
-def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_format): # обертка преобразователя строки к стандартным типам
+def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_format, symbol_list): # обертка преобразователя строки к стандартным типам
     result = list()
     for each in obj_:
-        result.append(str_to_type(each, convert_types, inner_quotes, date_format, datetime_format))
+        result.append(str_to_type(each, convert_types, inner_quotes, date_format, datetime_format, symbol_list))
     return result
 
 
@@ -188,10 +215,17 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
     """
     Функция разбирает строку на список:
         а) выражений в кавычках (приводятся к строкам, экранированные кавычки: '' внутри приводятся к обычным кавычкам
+            имеют абстрактный тип QuotedString
         б) элементов переданных в список символов(если таковые в строке были)
+            имеют абстрактный тип Symbol
         в) всего остального с приведенными типами данных, включая приведение к кортежам
-    при этом не изменяя порядок вхождения элементов в исходную строку и очищая каждый элемент от лишних
-    концевых пробелов и служебных символов
+            при этом не изменяя порядок вхождения элементов в исходную строку и очищая каждый элемент от лишних
+            концевых пробелов и служебных символов
+            Строки из этого пула приводятся к абстрактному типу UnConvString
+    Все кастомные строковые типа (QoutedString, Symbol, UnConvString) - строки с базовым классом SmartSplitString -
+        оберткой над str, ко всем 4 можно применять все стандартные строковые функции, не забывая, что большинство из них
+        автоматически приводит строку к типу str (никакие функции/методы класса str не переписывались)
+        обертки созданы только для того чтобы различать строки на выходе.
     :param str_: исходная строка
     :param symbol_list: список элементов-разделителей которые необходимо оставить в результирующем списке; по умолчанию - None
     :param delimiter_list: список символов-разделителей - можно передавать строкой, списком, кортежем - не сохраняются в итоговом списке; по умолчанию - None
@@ -203,6 +237,8 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
     :param datetime_format: формат представления даты-времени в строке; по умолчанию - YYYY-MM-DD HH:MI:SS.SSSSSS
     :return: возвращает список
     """
+    if str_ == '':
+        return []
     if not do_quotation_split:
         inner_quotes = False
     else:
@@ -230,7 +266,7 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
     if do_clean and type(result) == list:           # чистим список
         result = _str_list_cleaner(result)
     if (convert_types or inner_quotes) and type(result) == list :   # преобразуем элементы списка
-        result = _str_list_to_type(result, convert_types, inner_quotes, date_format, datetime_format)
+        result = _str_list_to_type(result, convert_types, inner_quotes, date_format, datetime_format, symbol_list)
     if convert_tuples:                              # преобразуем подсписки формата ['(', 1, ',', ..., ')'] к кортежам
         result = lo.modify_list(result)
     return result
@@ -243,5 +279,7 @@ if __name__ == '__main__':
                  '+', '-', '*', '/', '**']
     test_res = smart_split(test_str_5, oper_list)
     print(test_str_5)
-    print(smart_split(test_str_5, oper_list, ' \t\n'))
+    tst = smart_split(test_str_5, oper_list, ' \t\n')
+    for each in tst:
+        print(each, ': ', isinstance(each, SmartSplitString), type(each))
     # print(test_res)

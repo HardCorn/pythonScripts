@@ -4,13 +4,12 @@ import modelExceptions as me
 
 class Filter:
     def __init__(self):
-        self.parser = exp.ExpressionParser()
         self.expr = None
         self.dictionary = dict()
         self.row_head = None
 
     def set_clause(self, str_):
-        self.expr = self.parser.parse(str_)
+        self.expr = exp.parse(str_)
 
     def set_row_head(self, row_head):
         self.row_head = row_head
@@ -28,13 +27,17 @@ class Filter:
             tmp_dic[row_head[num]] = row_[num]
         self.dictionary = tmp_dic
 
-    def try_get_result(self):
+    def try_resolve(self):
         if type(self.expr) == bool:
             return self.expr
         try:
             return self.expr.evaluate()
         except:
             return None
+
+    def resolve(self, row_):
+        self.set_row(row_)
+        return self.get_result()
 
     def get_result(self):
         if type(self.expr) == bool:
@@ -52,5 +55,8 @@ if __name__ == '__main__':
     str = "1 = 0 and 1 not in '' or ('2018-01-01' < '2018-01-02') and self_name is none ('22', '33', '44')"
     a = Filter()
     a.set_clause("date_field = '2018-04-01'")
-    n = a.try_get_result()
+    n = a.try_resolve()
+    a.set_row_head(['date_field'])
+    b = a.resolve(['2018-04-01'])
     print(n)
+    print(b)
