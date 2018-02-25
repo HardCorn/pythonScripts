@@ -39,7 +39,7 @@ def datetime_to_str(date_, fmt=DATETIME_DEFAULT_FMT):
         date_ = datetime.now()
     elif type(date_) == str:
         date_ = str_to_datetime(date_)
-    if type(date_) != datetime:
+    if type(date_) not in (datetime, dt.datetime):
         raise ValueError('Error conversion {0} to str: wrong type({1})'.format(str(date_), type(date_)))
     return datetime.strftime(date_, refmt(fmt))
 
@@ -49,7 +49,7 @@ def date_to_str(date_, fmt=DATE_DEFAULT_FMT):
         date_ = datetime.now().date()
     elif type(date_) == str:
         date_ = str_to_date(date_)
-    if type(date_) != date_:
+    if type(date_) not in (date, dt.date):
         raise ValueError('Error conversion {0} to str: wrong type({1})'.format(str(date_), type(date_)))
     return date.strftime(date_, refmt(fmt))
 

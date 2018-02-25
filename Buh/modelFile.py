@@ -1,5 +1,5 @@
 import os
-import datetime as dt
+import dates as dt
 import json as js
 import modelExceptions as er
 import modelUtility as mu
@@ -20,12 +20,6 @@ import modelUtility as mu
 
 #### Константы ####
 DEBUG = True
-DATE_DEFAULT_FMT = 'YYYY-MM-DD'                         # формат по-умолчанию для типа дата
-DATETIME_DEFAULT_FMT = 'YYYY-MM-DD HH:MI:SS.SSSSSS'      # формат по-умолчанию для типа дата-время
-DAILY_PARTITION_FMT = 'YYYYMMDD'                        # формат дат для ежедневных партиций
-MONTH_PARTITION_FMT = 'YYYYMM'                          # формат дат для месячных партиций
-YEAR_PARTITION_FMT = 'YYYY'                             # формат для годовых партиций
-SHORT_YEAR_PARTITION_FMT = 'YY'                         # короткий формат для годовых партиций
 HEADER_EXTENSION = '.header'                            # расширение файлов заголовоков
 DATA_EXTENSION = '.data'                                # расширение файлов с данными
 # INDEX_EXTENSION = '.idx'                                # расширение файлов с индексами
@@ -51,8 +45,6 @@ APPEND_MODE = 'a'                                       # режим запис�
 REPLACE_MODE = 'r'                                      # режим записи данных - полная перегрузка файлов
 ACTUALITY_FIELD_NAME = None                             # имя атрибута по которому определяется актуальность ключа
 ACTUALITY_FIELD_TYPE = DATETIME_VALUE                   # тип атрибута по которому определяется актуальность ключа
-ACTUALITY_DTTM_VALUE = 'current_timestamp'              # значение атрибута актуальности - текущие дата-время
-ACTUALITY_DATE_VALUE = 'current_date'                   # значение атрибута актуальности - текущая дата
 FILE_DELIMITER_KEY = 'delimiter'                        # ключ словаря модели - разделитель в файлах модели
 ATTRIBUTE_NAME_KEY = 'name'                             # ключ словаря атрибутов - имя
 ATTRIBUTE_VALUE_KEY = 'value'                           # ключ словаря атрибутов - значение
@@ -79,40 +71,7 @@ def dequoting(str_):
             return str_
 
 
-def refmt(fmt):                     # приводим к форматам питона, не предполагаем никаких экстравагантных форматов
-    return fmt.upper().replace('YYYY', '%Y').replace('YY', '%y').replace('MM', '%m').replace('DD', '%d').replace(
-        'HH', '%H').replace('MI', '%M').replace('SSSSSS', '%f').replace('SS', '%S')
-
-
-def str_to_datetime(str_, fmt=DATETIME_DEFAULT_FMT):
-    if type(str_) == str and str_ == ACTUALITY_DTTM_VALUE:  # проставляем current_timestamp
-        str_ = dt.datetime.now().strftime(refmt(fmt))
-    return dt.datetime.strptime(str_, refmt(fmt))
-
-
-def str_to_date(str_, fmt=DATE_DEFAULT_FMT):
-    if type(str_) == str and str_ == ACTUALITY_DATE_VALUE:  # проставляем current_date
-        str_ = dt.datetime.now().strftime(refmt(fmt))
-    return dt.datetime.strptime(str_, refmt(fmt)).date()
-
-    
-def datetime_to_str(date, fmt=DATETIME_DEFAULT_FMT):
-    if type(date) == str and date == ACTUALITY_DTTM_VALUE:  # проставляем current_timestamp
-        date = dt.datetime.now()
-    if type(date) != dt.datetime:
-        raise er.UtilityException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
-    return dt.datetime.strftime(date, refmt(fmt))
-
-
-def date_to_str(date, fmt=DATE_DEFAULT_FMT):
-    if type(date) == str and date == ACTUALITY_DATE_VALUE:  # проставляем current_date
-        date = dt.datetime.now().date()
-    if type(date) != dt.date:
-        raise er.UtilityException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
-    return dt.date.strftime(date, refmt(fmt))
-
-
-def get_date_postfix(date=None, postfix_fmt=MONTH_PARTITION_FMT, date_fmt=DATE_DEFAULT_FMT):    # бесполезная вещь, к удалению
+def get_date_postfix(date=None, postfix_fmt=dt.MONTH_PARTITION_FMT, date_fmt=dt.DATE_DEFAULT_FMT):    # бесполезная вещь, к удалению
     """
         Формирует постфикс для файлов на основании даты.
         
@@ -126,15 +85,15 @@ def get_date_postfix(date=None, postfix_fmt=MONTH_PARTITION_FMT, date_fmt=DATE_D
         cur_date = date
     elif type(date) == str and type(date_fmt) == str:
         try:
-            cur_date = str_to_datetime(date, date_fmt)
+            cur_date = dt.str_to_datetime(date, date_fmt)
         except Exception:
             raise er.UtilityException('Can\'t get date from {0} using format {1}'.format(str(date), str(date_fmt)))
     else:
         raise er.UtilityException('Can\'t get postfix using date={0}, fmt={1}'.format(str(date), str(date_fmt)))
     if type(cur_date) == date:
-        return date_to_str(cur_date, postfix_fmt)
+        return dt.date_to_str(cur_date, postfix_fmt)
     else:
-        return datetime_to_str(cur_date, postfix_fmt)
+        return dt.datetime_to_str(cur_date, postfix_fmt)
     
 
 def read_model_data(file_path, row_map, delim=';'):
@@ -158,9 +117,9 @@ def read_model_data(file_path, row_map, delim=';'):
                     elif row_map[num] == STRING_VALUE:
                         tmp = dequoting(tmp_row[num])
                     elif row_map[num] == DATE_VALUE:
-                        tmp = str_to_date(dequoting(tmp_row[num]))
+                        tmp = dt.str_to_date(dequoting(tmp_row[num]))
                     elif row_map[num] == DATETIME_VALUE:
-                        tmp = str_to_datetime(dequoting(tmp_row[num]))
+                        tmp = dt.str_to_datetime(dequoting(tmp_row[num]))
                     elif row_map[num] == FLOAT_VALUE:
                         tmp = float(dequoting(tmp_row[num]))
                     else:       # неизвестный тип данных, поддерживаются только целые числа, даты и строки
@@ -194,9 +153,9 @@ def str_list_refactor(row_map, str_, attr_list, file_map, defaults, no_remap=Fal
         if str_[num] is None:                 # вместо None ставим пустую строку
             str_[num] = ''
         elif row_map[num] == DATE_VALUE:        # даты перекодируем через функцию
-            str_[num] = quoting(date_to_str(str_[num]))
+            str_[num] = quoting(dt.date_to_str(str_[num]))
         elif row_map[num] == DATETIME_VALUE:    # дату-время также прогоняем через отдельную функцию
-            str_[num] = quoting(datetime_to_str(str_[num]))
+            str_[num] = quoting(dt.datetime_to_str(str_[num]))
         else:
             str_[num] = quoting(str(str_[num])) # все остальное перекодируем через конструктор строки
     # diff = len(row_map) - len(str_)             # атрибуты, которые есть в карте, но отсутствуют в строке
@@ -276,7 +235,7 @@ class ModelFileWorker:
             if not str_[num - 1] and type(str_[num - 1]) == str:
                 part_name.append(str(None))                             # числа/строки
             elif fmt is not None and str_[num - 1] is not None:
-                part_name.append(date_to_str(str_[num - 1], fmt))       # с форматом только даты
+                part_name.append(dt.date_to_str(str_[num - 1], fmt))       # с форматом только даты
             else:
                 part_name.append(str(str_[num - 1]))
         return delim.join(part_name)                                    # склеиваем разделителем
@@ -355,12 +314,12 @@ class ModelFileWorker:
             def_ = attr_dict[each + 1][OPTION_DEFAULT_KEY]
             typ_ = attr_dict[each + 1][ATTRIBYTE_TYPE_KEY]
             if typ_ not in (DATETIME_VALUE, DATE_VALUE) \
-                or def_ in (ACTUALITY_DTTM_VALUE, ACTUALITY_DATE_VALUE, None):
+                or def_ in (dt.ACTUALITY_DTTM_VALUE, dt.ACTUALITY_DATE_VALUE, None):
                 res_list[each] = def_
             elif typ_ == DATE_VALUE:
-                res_list[each] = str_to_date(def_)
+                res_list[each] = dt.str_to_date(def_)
             else:
-                res_list[each] = str_to_datetime(def_)
+                res_list[each] = dt.str_to_datetime(def_)
         return res_list
 
     def write_model_data(self, name: str, list_str: list, attr_list=None, brutal=False):
@@ -598,11 +557,11 @@ class ModelFileWorker:
         header[ATTRIBUTE_KEY][num][OPTION_HIDE_KEY] = False
         for each in kwargs:                                     # проставляем custom опции атрибутов
             if each == OPTION_DEFAULT_KEY:
-                if attribute_type in (DATE_VALUE, DATETIME_VALUE) and kwargs[each] not in (ACTUALITY_DATE_VALUE, ACTUALITY_DTTM_VALUE):
+                if attribute_type in (DATE_VALUE, DATETIME_VALUE) and kwargs[each] not in (dt.ACTUALITY_DATE_VALUE, dt.ACTUALITY_DTTM_VALUE):
                     if attribute_type == DATE_VALUE:
-                        header[ATTRIBUTE_KEY][num][each] = date_to_str(kwargs[each])
+                        header[ATTRIBUTE_KEY][num][each] = dt.date_to_str(kwargs[each])
                     if attribute_type == DATETIME_VALUE:
-                        header[ATTRIBUTE_KEY][num][each] = datetime_to_str(kwargs[each])
+                        header[ATTRIBUTE_KEY][num][each] = dt.datetime_to_str(kwargs[each])
                 else:
                     header[ATTRIBUTE_KEY][num][each] = kwargs[each]
             else:
@@ -729,7 +688,7 @@ class ModelFileWorker:
                 raise er.ModelFileException('Error model creation: Unknown type for \'hide\' parameter! Use list or string!')
             if defaults is None:                                                    # выставляем значение по-умолчанию
                 defaults = dict()
-            defaults[ACTUALITY_FIELD_NAME] = ACTUALITY_DTTM_VALUE
+            defaults[ACTUALITY_FIELD_NAME] = dt.ACTUALITY_DTTM_VALUE
         elif load_mode == REPLACE_MODE:                                             # метод полной перезаписи модели
             header[OPTIONS_KEY][OPTION_LOAD_KEY] = REPLACE_MODE
         else:                                                                       # других пока не предусмотрено
@@ -742,18 +701,18 @@ class ModelFileWorker:
             attr_name = header[ATTRIBUTE_KEY][each][ATTRIBUTE_NAME_KEY]
             attr_type = header[ATTRIBUTE_KEY][each][ATTRIBYTE_TYPE_KEY]
             if (type(defaults) == dict and attr_name in defaults):                  # значения по умолчанию
-                if attr_type == DATE_VALUE and defaults[attr_name] != ACTUALITY_DATE_VALUE:
+                if attr_type == DATE_VALUE and defaults[attr_name] != dt.ACTUALITY_DATE_VALUE:
                     if type(defaults[attr_name]) == str:
-                        str_to_date(defaults[attr_name])
+                        dt.str_to_date(defaults[attr_name])
                         def_ = defaults[attr_name]
                     else:
-                        def_ = date_to_str(defaults[attr_name])
-                elif attr_type == DATETIME_VALUE and defaults[attr_name] != ACTUALITY_DTTM_VALUE:
+                        def_ = dt.date_to_str(defaults[attr_name])
+                elif attr_type == DATETIME_VALUE and defaults[attr_name] != dt.ACTUALITY_DTTM_VALUE:
                     if type(defaults[attr_name]) == str:
-                        str_to_datetime(defaults[attr_name])
+                        dt.str_to_datetime(defaults[attr_name])
                         def_ = defaults[attr_name]
                     else:
-                        def_ = datetime_to_str(defaults[attr_name])
+                        def_ = dt.datetime_to_str(defaults[attr_name])
                 else:
                     def_ = defaults[attr_name]
             else:
@@ -809,7 +768,7 @@ class ModelFileWorker:
         attr_type = header[ATTRIBUTE_KEY][num][ATTRIBYTE_TYPE_KEY]                  # сохраняем тип атрибута
         if attr_type in (DATE_VALUE, DATETIME_VALUE) and modif_type in ('add', 'reformat'): # проверяем форма для дат при смене формата/добавлении партиции
             try:
-                datetime_to_str(dt.datetime.now(), attr_fmt)
+                dt.datetime_to_str(dt.datetime.now(), attr_fmt)
             except Exception:
                 raise er.ModelModifyError('Error modifying partitioning for {0}: Incorrect format {1} for date or datetime'.format(
                     model_name, attr_fmt
@@ -879,8 +838,8 @@ if __name__ == '__main__' and DEBUG:
     a.add_attribute('New_model', 'info_field4', 'dttm', default=dt.datetime(1,1,1))
     a.rename_attribute('New_model', 'info_field3', 'floating_data')
     a.delete_attribute('New_model', 'info_field2')
-    a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000,11,10,5,30), None, ACTUALITY_DTTM_VALUE, 3.5])
-    a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000, 11, 10, 5, 30), dt.date(2018, 4, 1), ACTUALITY_DTTM_VALUE, 321365654438433452456475864674.5123456789])
+    a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000,11,10,5,30), None, dt.ACTUALITY_DTTM_VALUE, 3.5])
+    a.insert_simple_data('New_model', ['k5', 'i10', dt.datetime(2000, 11, 10, 5, 30), dt.date(2018, 4, 1), dt.ACTUALITY_DTTM_VALUE, 321365654438433452456475864674.5123456789])
     a.insert_simple_data('New_model', ['k6', dt.date(2017,5,14)], ['key_field', 'date_field'])
     a.modify_partition('New_model', 'remove', 'date_field')
     a.modify_partition('New_model', 'add', 'date_field', 'YYYYMMDD')
