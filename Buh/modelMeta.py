@@ -167,9 +167,5 @@ def add_model(meta_worker : mf.ModelFileWorker, worker_name, model_name, model_h
     meta_worker.write_model_data(IDS_MODEL_NAME, id_list, attr_list, brutal=True)
 
 
-
-
-
-
 if __name__ == '__main__':
     pass

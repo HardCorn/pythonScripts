@@ -29,7 +29,6 @@ def get_symbol_border_list(symbol_list, delimiter_list):
         tmp += delimiter_list
     else:
         tmp += ' \t\n'
-    print(tmp)
     return tmp
 
 
