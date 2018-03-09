@@ -18,55 +18,40 @@ class QuotedString(SmartSplitString):    # абстактный класс к к
     pass
 
 
-DATE_DEFAULT_FMT = 'YYYY-MM-DD'                         # формат по-умолчанию для типа дата
-DATETIME_DEFAULT_FMT = 'YYYY-MM-DD HH:MI:SS.SSSSSS'      # формат по-умолчанию для типа дата-время
-DAILY_PARTITION_FMT = 'YYYYMMDD'                        # формат дат для ежедневных партиций
-MONTH_PARTITION_FMT = 'YYYYMM'                          # формат дат для месячных партиций
-YEAR_PARTITION_FMT = 'YYYY'                             # формат для годовых партиций
-SHORT_YEAR_PARTITION_FMT = 'YY'                         # короткий формат для годовых партиций
-ACTUALITY_DTTM_VALUE = 'current_timestamp'              # значение атрибута актуальности - текущие дата-время
-ACTUALITY_DATE_VALUE = 'current_date'                   # значение атрибута актуальности - текущая дата
+def get_symbol_border_list(symbol_list, delimiter_list):
+    tmp = ''
+    if symbol_list is not None:
+        if isinstance(symbol_list, list):
+            for each in symbol_list:
+                if len(each) == 1 and not each.isalpha():
+                    tmp += each
+    if isinstance(delimiter_list, str):
+        tmp += delimiter_list
+    else:
+        tmp += ' \t\n'
+    print(tmp)
+    return tmp
 
 
-def refmt(fmt):                     # приводим к форматам питона, не предполагаем никаких экстравагантных форматов
-    return fmt.upper().replace('YYYY', '%Y').replace('YY', '%y').replace('MM', '%m').replace('DD', '%d').replace(
-        'HH', '%H').replace('MI', '%M').replace('SSSSSS', '%f').replace('SS', '%S')
+def check_symbol_borders(str_, symbol, symb_start_pos, borders):
+    if not symbol.isalpha():
+        return True
+    else:
+        if len(str_) > len(symbol):
+            if symb_start_pos > 0:
+                if str_[symb_start_pos - 1] not in borders:
+                    return False
+            if len(str_) - 1 > symb_start_pos + len(symbol):
+                if str_[symb_start_pos + len(symbol)] not in borders:
+                    return False
+            return True
+
+        else:
+            return True
 
 
-def str_to_datetime(str_, fmt=DATETIME_DEFAULT_FMT):
-    if type(str_) == str and str_ == ACTUALITY_DTTM_VALUE:  # проставляем current_timestamp
-        str_ = dt.datetime.now().strftime(refmt(fmt))
-    return dt.datetime.strptime(str_, refmt(fmt))
-
-
-def str_to_date(str_, fmt=DATE_DEFAULT_FMT):
-    if type(str_) == str and str_ == ACTUALITY_DATE_VALUE:  # проставляем current_date
-        str_ = dt.datetime.now().strftime(refmt(fmt))
-    return dt.datetime.strptime(str_, refmt(fmt)).date()
-
-
-def datetime_to_str(date, fmt=DATETIME_DEFAULT_FMT):
-    if type(date) == str and date == ACTUALITY_DTTM_VALUE:  # проставляем current_timestamp
-        date = dt.datetime.now()
-    elif type(date) == str:
-        date = str_to_datetime(date)
-    if type(date) != dt.datetime:
-        raise BaseException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
-    return dt.datetime.strftime(date, refmt(fmt))
-
-
-def date_to_str(date, fmt=DATE_DEFAULT_FMT):
-    if type(date) == str and date == ACTUALITY_DATE_VALUE:  # проставляем current_date
-        date = dt.datetime.now().date()
-    elif type(date) == str:
-        date = str_to_date(date)
-    if type(date) != dt.date:
-        raise BaseException('Error conversion {0} to str: wrong type({1})'.format(str(date), type(date)))
-    return dt.date.strftime(date, refmt(fmt))
-
-
-def str_to_type(str_, convert_types=True, inner_quotes=True, date_format=DATE_DEFAULT_FMT,
-                datetime_format=DATETIME_DEFAULT_FMT, symbol_list=None):  # Пытается привести строку к разным типам данных
+def str_to_type(str_, convert_types=True, inner_quotes=True, date_format=dt.DATE_DEFAULT_FMT,
+                datetime_format=dt.DATETIME_DEFAULT_FMT, symbol_list=None):  # Пытается привести строку к разным типам данных
     if convert_types:
         if str_.lower() == 'true':
             return True
@@ -77,11 +62,11 @@ def str_to_type(str_, convert_types=True, inner_quotes=True, date_format=DATE_DE
         if str_.count('.') == 1 and str_.replace('.', '').isnumeric():
             return float(str_)
         try:
-            return str_to_date(str_.strip('\''), date_format)
+            return dt.str_to_date(str_.strip('\''), date_format)
         except Exception:
             pass
         try:
-            return str_to_datetime(str_.strip('\''), datetime_format)
+            return dt.str_to_datetime(str_.strip('\''), datetime_format)
         except Exception:
             pass
         if is_quoted(str_):
@@ -155,7 +140,7 @@ def _str_quotation_split(str_, inner_quotes=True):      # дробилка од�
     return res
 
     
-def _str_split(str_, symbol, symbol_list, delimiter=False, pass_qouted=True):   # разрезание строки по символу
+def _str_split(str_, symbol, symbol_list, delimiter=False, pass_qouted=True, check_borders=False, borders=None):   # разрезание строки по символу
     if is_quoted(str_) and pass_qouted:         # если получили строку в кавычках - просто возвращаем ее
         return str_
     if symbol_list is not None:                 # если получили один из символов - так же возвращаем его
@@ -168,23 +153,26 @@ def _str_split(str_, symbol, symbol_list, delimiter=False, pass_qouted=True):   
         result = list()
         fnd = tmp_str.find(symbol)              # ищем символ в строке
         while fnd != -1:
-            if fnd != 0:                        # если он не в начале строки пишем начало строки до символа
-                result.append(tmp_str[:fnd])
-            result.append(symbol)               # приписываем сам символ
-            tmp_str = tmp_str[fnd + len(symbol):]   # обрезаем строку
-            fnd = tmp_str.find(symbol)          # снова ищем
+            if not check_borders or check_symbol_borders(tmp_str, symbol, fnd, borders):
+                if fnd != 0:                        # если он не в начале строки пишем начало строки до символа
+                    result.append(tmp_str[:fnd])
+                result.append(symbol)               # приписываем сам символ
+                tmp_str = tmp_str[fnd + len(symbol):]   # обрезаем строку
+                fnd = tmp_str.find(symbol)          # снова ищем
+            else:
+                fnd = tmp_str.find(symbol, fnd + 1)
         if tmp_str != '':                       # если после последнего символа осталось что-то - дописываем в конец
             result.append(tmp_str)
         return result
         
 
-def _obj_split(obj_, symbol, symbol_list, delimiter=False, pass_qouted=True):   # обертка разрезалки строки - работает со строками и списками строк
+def _obj_split(obj_, symbol, symbol_list, delimiter=False, pass_qouted=True, check_borders=False, borders=None):   # обертка разрезалки строки - работает со строками и списками строк
     if type(obj_) == str:
-        return _str_split(obj_, symbol, symbol_list, delimiter, pass_qouted)
+        return _str_split(obj_, symbol, symbol_list, delimiter, pass_qouted, check_borders, borders=borders)
     elif type(obj_) == list:
         res = list()
         for each in obj_:
-            tmp_res = _str_split(each, symbol, symbol_list, delimiter, pass_qouted)
+            tmp_res = _str_split(each, symbol, symbol_list, delimiter, pass_qouted, check_borders, borders=borders)
             if type(tmp_res) == str:
                 res.append(tmp_res)
             else:
@@ -210,8 +198,8 @@ def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_f
 
 
 def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=True,
-                do_clean=True, convert_types=True, convert_tuples=True, date_format=DATE_DEFAULT_FMT,
-                datetime_format=DATETIME_DEFAULT_FMT):  # сама разрезалка
+                do_clean=True, convert_types=True, convert_tuples=True, check_symbols=True,
+                date_format=dt.DATE_DEFAULT_FMT, datetime_format=dt.DATETIME_DEFAULT_FMT):  # сама разрезалка
     """
     Функция разбирает строку на список:
         а) выражений в кавычках (приводятся к строкам, экранированные кавычки: '' внутри приводятся к обычным кавычкам
@@ -233,6 +221,7 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
     :param do_clean: флаг очищения итогового списка от пустых элементов и служебных символов/концевых пробелов; по умолчанию - True
     :param convert_types: флаг необходимости преобразования базовых типов данных(int, float, date, datetime, bool); по умолчанию - True
     :param convert_tuples: флаг необходимости преобразования структур похожих на кортежи к кортежам внутри списка; по умолчанию - True
+    :param check_symbol: Проверка границ символа (чтобы не резать одно слово по вхождению в него элемента-разделителя подстрокой)
     :param date_format: формат представления дат в строке; по умолчанию - YYYY-MM-DD
     :param datetime_format: формат представления даты-времени в строке; по умолчанию - YYYY-MM-DD HH:MI:SS.SSSSSS
     :return: возвращает список
@@ -249,6 +238,10 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
     else:
         result = str_
     if symbol_list is not None:         # если на входе получили список символов
+        if check_symbols:
+            borders = get_symbol_border_list(symbol_list, delimiter_list)
+        else:
+            borders = None
         if type(symbol_list) == str:    # строку преобразуем к списку
             tmp = list()
             if len(symbol_list) > 0:
@@ -257,9 +250,10 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
         if len(symbol_list) != 0:
             sorted_list = _symbol_sort(symbol_list) # сортируем символы
             for symbol in sorted_list:              # по полученному списку режем строку
-                result = _obj_split(result, symbol, symbol_list)
+                result = _obj_split(result, symbol, symbol_list, check_borders=check_symbols, borders=borders)
         else:                                       # если на входе получили пустую строку/пустой список - просто делаем split()
-            result = result.split()
+            if type(result) == str:
+                result = result.split()
     if delimiter_list is not None:                  # если получили список разделителей - нарезаем еще и по ним
         for each in delimiter_list:
             result = _obj_split(result, each, symbol_list, delimiter=True)
@@ -273,10 +267,10 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
 
 
 if __name__ == '__main__':
-    test_str_5 = "1=0 and 1 not is not none in '''2'''  and '2' = '' or some_attr = '''2012-12-31'''or('2018-01-01' < '2018-01-02') and self_name is none ('22','33','44')"
+    test_str_5 = "1=0 andy 1 not is not none in '''2'''  and '2' = '' or some_attr = '''2012-12-31'''or('2018-01-01' < '2018-01-02') and self_name is none ('22','33','44')"
     test_str_6 = "'''1014 - 33 - 33'''"
     oper_list = ['<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none',
-                 '+', '-', '*', '/', '**']
+                 '+', '-', '*', '/', '**', '(', ')']
     test_res = smart_split(test_str_5, oper_list)
     print(test_str_5)
     tst = smart_split(test_str_5, oper_list, ' \t\n')
