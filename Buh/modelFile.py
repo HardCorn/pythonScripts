@@ -94,7 +94,31 @@ def get_date_postfix(date=None, postfix_fmt=dt.MONTH_PARTITION_FMT, date_fmt=dt.
         return dt.date_to_str(cur_date, postfix_fmt)
     else:
         return dt.datetime_to_str(cur_date, postfix_fmt)
-    
+
+
+def read_str(row, row_map, delim, file_path=None):
+    res_row = list()
+    tmp_row = row.strip(' \t\n').split(delim)
+    if len(tmp_row) > len(row_map):     # row_map не синхронизован со строкой - норма, переписать если короче - нет добавленных атрибутов
+        raise er.ModelReadError('Incorrect row \'{0}\' in file {1} (map: {2})'.format(row, file_path, str(row_map)))
+    for num in range(len(tmp_row)):     # пытаемся привести все элементы к типам в соотв с row_map
+        if tmp_row[num] == '':
+            tmp = None
+        elif row_map[num] == INTEGER_VALUE:
+            tmp = int(dequoting(tmp_row[num]))
+        elif row_map[num] == STRING_VALUE:
+            tmp = dequoting(tmp_row[num])
+        elif row_map[num] == DATE_VALUE:
+            tmp = dt.str_to_date(dequoting(tmp_row[num]))
+        elif row_map[num] == DATETIME_VALUE:
+            tmp = dt.str_to_datetime(dequoting(tmp_row[num]))
+        elif row_map[num] == FLOAT_VALUE:
+            tmp = float(dequoting(tmp_row[num]))
+        else:       # неизвестный тип данных, поддерживаются только целые числа, даты и строки
+            raise er.ModelReadError('Incorrect row map: {}'.format(row_map))
+        res_row.append(tmp)
+    return res_row
+
 
 def read_model_data(file_path, row_map, delim=';'):
     """
@@ -105,30 +129,31 @@ def read_model_data(file_path, row_map, delim=';'):
             if not row_map:     # подразумевается что row_map передается извне
                 raise er.ModelReadError('You can\'t read model data files without it\'s metadata')
             else:
-                res_row = list()
-                tmp_row = row.strip(' \t\n').split(delim)
-                if len(tmp_row) > len(row_map):     # row_map не синхронизован со строкой - норма, переписать если короче - нет добавленных атрибутов
-                    raise er.ModelReadError('Incorrect row \'{0}\' in file {1} (map: {2})'.format(row, file_path, str(row_map)))
-                for num in range(len(tmp_row)):     # пытаемся привести все элементы к типам в соотв с row_map
-                    if tmp_row[num] == '':
-                        tmp = None
-                    elif row_map[num] == INTEGER_VALUE:
-                        tmp = int(dequoting(tmp_row[num]))
-                    elif row_map[num] == STRING_VALUE:
-                        tmp = dequoting(tmp_row[num])
-                    elif row_map[num] == DATE_VALUE:
-                        tmp = dt.str_to_date(dequoting(tmp_row[num]))
-                    elif row_map[num] == DATETIME_VALUE:
-                        tmp = dt.str_to_datetime(dequoting(tmp_row[num]))
-                    elif row_map[num] == FLOAT_VALUE:
-                        tmp = float(dequoting(tmp_row[num]))
-                    else:       # неизвестный тип данных, поддерживаются только целые числа, даты и строки
-                        raise er.ModelReadError('Incorrect row map: {}'.format(row_map))
-                    res_row.append(tmp)
-                diff = len(row_map) - len(tmp_row)  # атрибуты которые есть в метаданных и отсутствуют в строке
-                if diff > 0:                        # если они есть
-                    for _ in range(diff):           # дописываем None вместо них
-                        res_row.append(None)
+                res_row = read_str(row, row_map, delim, file_path)
+                # res_row = list()
+                # tmp_row = row.strip(' \t\n').split(delim)
+                # if len(tmp_row) > len(row_map):     # row_map не синхронизован со строкой - норма, переписать если короче - нет добавленных атрибутов
+                #     raise er.ModelReadError('Incorrect row \'{0}\' in file {1} (map: {2})'.format(row, file_path, str(row_map)))
+                # for num in range(len(tmp_row)):     # пытаемся привести все элементы к типам в соотв с row_map
+                #     if tmp_row[num] == '':
+                #         tmp = None
+                #     elif row_map[num] == INTEGER_VALUE:
+                #         tmp = int(dequoting(tmp_row[num]))
+                #     elif row_map[num] == STRING_VALUE:
+                #         tmp = dequoting(tmp_row[num])
+                #     elif row_map[num] == DATE_VALUE:
+                #         tmp = dt.str_to_date(dequoting(tmp_row[num]))
+                #     elif row_map[num] == DATETIME_VALUE:
+                #         tmp = dt.str_to_datetime(dequoting(tmp_row[num]))
+                #     elif row_map[num] == FLOAT_VALUE:
+                #         tmp = float(dequoting(tmp_row[num]))
+                #     else:       # неизвестный тип данных, поддерживаются только целые числа, даты и строки
+                #         raise er.ModelReadError('Incorrect row map: {}'.format(row_map))
+                #     res_row.append(tmp)
+                # diff = len(row_map) - len(tmp_row)  # атрибуты которые есть в метаданных и отсутствуют в строке
+                # if diff > 0:                        # если они есть
+                #     for _ in range(diff):           # дописываем None вместо них
+                #         res_row.append(None)
                 yield res_row   # возвращаем полученный набор
     raise StopIteration         # Файл закончился
 
@@ -803,6 +828,62 @@ class ModelFileWorker:
         header[PARTITION_FILES_KEY] = dict()                # сносим невалидный словарь файлов модели
         data = self.read_model_data(model_name)                                     # читаем файлы модели
         self.replace_model_files(model_name, data, header)                          # переписываем файлы используя прочтенные данные
+
+    def drop_partition(self, model_name, part_list, ignore_part_err=True):
+        if isinstance(part_list, str):
+            part_list = [part_list]
+        elif part_list is None:
+            raise er.ModelModifyError('Drop partition', 'Partition name can not be None!')
+        header = self.get_model_header(model_name)
+        part_dict = header[PARTITION_FILES_KEY]
+        for each in part_dict:
+            if each not in part_list:
+                if not ignore_part_err:
+                    raise er.ModelModifyError('Drop partition', 'can\'t find \'{}\' partition'.format(each))
+            else:
+                part_path =  part_dict[each]
+                try:
+                    os.remove(part_path)
+                except IOError:
+                    raise er.ModelModifyError('Drop partition', 'error delete partition data file')
+                del header[PARTITION_FILES_KEY][each]
+        self._change_header(model_name, header)
+
+    def copy_model(self, exist_model, new_model):
+        header = self.get_model_header(exist_model)
+        os.mkdir(self.model_meta[DATA_PATH] + new_model)
+        self._change_header(new_model, header)
+
+    def _get_partition_header(self, header):
+        attrs_dict = header[ATTRIBUTE_KEY]
+        parts = header[PARTITION_ATTRIBUTE_KEY]
+        if len(parts) == 0:
+            return None
+        res = list()
+        for num in range(len(parts)):
+            res.append(attrs_dict[parts[num + 1][PARTITION_FIELD_NUM]][ATTRIBUTE_NAME_KEY])
+        return res
+
+    def get_parts_list(self, model_name, fltr : mu.Filter):
+        header = self.get_model_header(model_name)
+        tmp = list(header[PARTITION_FILES_KEY].keys())
+        if fltr is None:
+            return tmp
+        lst = self._get_partition_header(header)
+        if lst is None:
+            return [DEFAULT_SINGLE_PARTITION_VAL]
+        if len(tmp) == 1:
+            return tmp
+        part_map = list()
+        for num in range(len(header[ATTRIBUTE_KEY])):
+            if header[ATTRIBUTE_KEY][num + 1][ATTRIBUTE_NAME_KEY] in lst:
+                part_map.append(header[ATTRIBUTE_KEY][num + 1][ATTRIBYTE_TYPE_KEY])
+        result = list()
+        for each in tmp:
+            temp_str = read_str(each, part_map, header[FILE_DELIMITER_KEY], 'header')
+            if fltr.resolve(temp_str):
+                result.append(each)
+        return result
 
 
 if __name__ == '__main__' and DEBUG:

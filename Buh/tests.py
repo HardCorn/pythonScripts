@@ -1,10 +1,11 @@
 import modelMeta as mm
 import modelFile as mf
-import os
+import osExtension as oe
 
 
-test_dir = 'C:\\simple_test\\test\\'
-# os.remove(test_dir)
+test_dir = 'D:\\simple_test\\test\\'
+mm.revalidate_path(test_dir, True)
+oe.extended_remove(test_dir, True, True)
 meta_worker = mm.create_meta(test_dir)
 print(meta_worker)
 meta_path = mm.get_meta_path(test_dir)

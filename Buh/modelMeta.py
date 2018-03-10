@@ -80,11 +80,12 @@ def revalidate_path(path, recursive=False):
             return False
         return True
     else:
-        tmp_path = path.split('\\')
-        pth = tmp_path[0] + '\\'
+        path = path.strip(os.path.sep)
+        tmp_path = path.split(os.path.sep)
+        pth = tmp_path[0] + os.path.sep
         res = True
         for each in tmp_path[1 :]:
-            pth = pth + each + '\\'
+            pth = os.path.join(pth, each)
             if not os.path.exists(pth):
                 os.mkdir(pth)
                 res = False
@@ -135,7 +136,7 @@ def add_worker(meta_worker : mf.ModelFileWorker, home_dir, worker_name):
 def add_model(meta_worker : mf.ModelFileWorker, worker_name, model_name, model_header):
     lst_ = list()
     parts = list()
-    condition = ATTR_MODEL_WORKER + ' = ' + worker_name + ' and ' + ATTR_MODEL_MODEL + ' = ' + model_name
+    condition = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
     fltr = mu.Filter()
     fltr.set_clause(condition)
     id = meta_worker.read_model_data(IDS_MODEL_NAME, filter_=fltr, selected=ATTR_ID_GEN_MAX)
