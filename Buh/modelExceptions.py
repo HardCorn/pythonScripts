@@ -9,6 +9,10 @@ class FilterException(BaseModelException):
     pass
 
 
+class ModelMetaException(BaseModelException):
+    pass
+
+
 class ModelFileException(BaseModelException):
     pass
 

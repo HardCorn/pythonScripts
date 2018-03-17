@@ -2,11 +2,16 @@ import modelFile as mf
 import os
 import dates as dt
 import modelUtility as mu
+import osExtension as oe
+import modelExceptions as me
 
 
 WORKERS_MODEL_NAME = 'Workers'
 MODELS_MODEL_NAME = 'Models'
+CONFIG_MODEL_NAME = 'Config'
 IDS_MODEL_NAME = 'Meta_id_sequence'
+ATTR_CONFIG_NAME = 'name'
+ATTR_CONFIG_VALUE = 'value'
 ATTR_ID_GEN_MAX = 'current_max'
 ATTR_MODEL_WORKER = 'worker_name'
 ATTR_MODEL_MODEL = 'model_name'
@@ -21,6 +26,8 @@ ATTR_WORKER_NAME = 'worker_name'
 ATTR_WORKER_DIR = 'data_directory'
 META_DEFAULT_DELIMITER = '|^|'
 MAIN_BASE_NAME = 'Main'
+DEFAULT_WORKER_NAME = 'default_worker'
+DEFAULT_DELIMITER_NAME = 'default_delimiter'
 
 
 MODEL_WORKERS_DICT = {
@@ -69,6 +76,27 @@ MODEL_MODELS_DICT = {
 }
 
 
+MODEL_CONFIG_DICT = {
+    'name': CONFIG_MODEL_NAME,
+    'attrs': {
+        ATTR_CONFIG_NAME: 'str',
+        ATTR_CONFIG_VALUE: 'str'
+    },
+    'key': ATTR_CONFIG_NAME,
+    'partition': None,
+    'delim': META_DEFAULT_DELIMITER,
+    'defaults': None,
+    'hide': None,
+    'load_mode': mf.REPLACE_MODE
+}
+
+
+DEFAULT_CONFIG_DICT = {
+    DEFAULT_WORKER_NAME: MAIN_BASE_NAME,
+    DEFAULT_DELIMITER_NAME: META_DEFAULT_DELIMITER
+}
+
+
 def get_self_dir():
     return os.path.curdir
 
@@ -97,15 +125,34 @@ def chek_file(path):
 
 
 def get_meta_path(home_dir):
-    return home_dir + 'Metadata\\'
+    return os.path.join(home_dir, 'Metadata') + os.path.sep
 
 
 def get_data_path(home_dir):
-    return home_dir + 'Data\\'
+    return os.path.join(home_dir, 'Data') + os.path.sep
+
 
 def get_worker_path(home_dir, worker_name):
     data_path = get_data_path(home_dir)
-    return data_path + worker_name + '\\'
+    return os.path.join(data_path, worker_name) + os.path.sep
+
+
+def set_default_config(worker : mf.ModelFileWorker):
+    res = list()
+    for each in DEFAULT_CONFIG_DICT:
+        res.append([each, DEFAULT_CONFIG_DICT[each]])
+    worker.write_model_data(CONFIG_MODEL_NAME, res, [ATTR_CONFIG_NAME, ATTR_CONFIG_VALUE], brutal=True)
+
+
+def get_config(worker : mf.ModelFileWorker):
+    data = worker.read_model_data(CONFIG_MODEL_NAME, selected=[ATTR_CONFIG_NAME, ATTR_CONFIG_VALUE])
+    res_dict = dict()
+    for each in data:
+        res_dict[each[0]] = each[1]
+    return res_dict
+
+def drop_all(home_dir, save_income_path=False):
+    oe.extended_remove(home_dir, recursive=True, ignore_errors=True, save_income_path=save_income_path)
 
 
 def create_meta(home_dir=None):
@@ -123,6 +170,8 @@ def create_meta(home_dir=None):
                               [ATTR_WORKER_NAME, ATTR_WORKER_DIR])
     worker.create_model(**MODEL_ID_GEN_DICT)
     worker.create_model(**MODEL_MODELS_DICT)
+    worker.create_model(**MODEL_CONFIG_DICT)
+    set_default_config(worker)
     return worker
 
 
@@ -167,6 +216,50 @@ def add_model(meta_worker : mf.ModelFileWorker, worker_name, model_name, model_h
     id_list.append([worker_name, model_name, id])
     meta_worker.write_model_data(IDS_MODEL_NAME, id_list, attr_list, brutal=True)
 
+
+def start_meta(home_dir, brutal):
+    meta_path = get_meta_path(home_dir)
+    if not os.path.exists(meta_path) or brutal:
+        return create_meta(home_dir)
+    else:
+        return mf.ModelFileWorker(meta_path)
+
+
+class ModelMeta:
+    def __init__(self, home_dir, brutal=False):
+        self.model_path = home_dir
+        self.filter = mu.Filter()
+        self.worker = start_meta(home_dir, brutal)
+        try:
+            data_workers = self.worker.read_model_data(WORKERS_MODEL_NAME)
+            for each in data_workers:
+                each[1] = mf.ModelFileWorker(each[1])
+            self.data_workers = mu.build_simple_view(data_workers, self.worker.get_model_key(WORKERS_MODEL_NAME))
+            self.config = get_config(self.worker)
+        except:
+            raise me.ModelMetaException('Error metadata initializing', 'Can\'t read model metadata, it\'s broken!')
+
+    def add_data_worker(self, worker_name):
+        path = get_worker_path(self.model_path, worker_name)
+        oe.revalidate_path(path)
+        self.data_workers[worker_name] = add_worker(self.worker, self.model_path, worker_name)
+        return self.data_workers[worker_name]
+
+    def add_data_model(self, worker_name, model_name, model_header):
+        add_model(self.worker, worker_name, model_name, model_header)
+
+    def reset_config_to_default(self):
+        set_default_config(self.worker)
+        self.config = get_config(self.worker)
+
+    def drop_data_model(self, worker_name, model_name):
+        clause = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
+        part_list = self.worker.get_parts_list(MODELS_MODEL_NAME, self.filter.set_clause(clause))
+        self.worker.drop_partition(MODELS_MODEL_NAME, part_list)
+
+    def modify_data_model(self, worker_name, model_name, model_header):
+        self.drop_data_model(worker_name, model_name)
+        add_model(self.worker, worker_name, model_name, model_header)
 
 if __name__ == '__main__':
     pass

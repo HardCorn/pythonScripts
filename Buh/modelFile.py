@@ -910,6 +910,11 @@ class ModelFileWorker:
                 result.append(each)
         return result
 
+    def get_model_key(self, model_name):
+        if model_name not in self.model_meta:
+            self._read_header(model_name)
+        return self.model_meta[model_name][PK_ATTRIBUTE_KEY]
+
 
 if __name__ == '__main__' and DEBUG:
     a = ModelFileWorker(home)

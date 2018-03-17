@@ -2,6 +2,22 @@ import expressions as exp
 import modelExceptions as me
 
 
+def build_simple_view(list_str, key):
+    fkey = key - 1
+    if fkey == 0:
+        fval = 1
+    else:
+        fval = 0
+    res_dict = dict()
+    for each in list_str:
+        res_dict[each[fkey]] = each[fval]
+    return res_dict
+
+
+def build_view(list_str, key, attrs, check_actuality=False):
+    pass
+
+
 class Filter:
     def __init__(self):
         self.expr = None
