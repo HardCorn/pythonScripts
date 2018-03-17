@@ -30,11 +30,12 @@ COMPARING_OPERATION = 'cmpr'
 
 TYPE_COMPARE = {
     bool: -50,
-    str: 3,
+    str: 4,
     int: 0,
     float: -1,
-    dt.date: 2,
-    dt.datetime: 1,
+    dt.date: 3,
+    dt.datetime: 2,
+    dt.dateRange: 1,
     list: 100,
     type(None): -100
 }   # словарь для приоретизации типов данных
@@ -63,6 +64,8 @@ def get_right_type(left, right):    # функция выбираем тип с 
         return tp_left
     if type(None) in (tp_left, tp_right):
         return type(None)
+    if dt.dateRange in (tp_left, tp_right):
+        return dt.to_dateRange
     if dt.datetime in (tp_right, tp_left):  # если получили дату\датувремя - вместо типов возвращаем функции приведения к ним
         return dt.to_datetime
     if dt.date in (tp_right, tp_left):

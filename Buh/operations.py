@@ -62,6 +62,8 @@ def not_in(left, right):
 def like(left, right):
     if left is None or right is None:
         return False
+    if not (isinstance(left, str) and isinstance(right, str)):
+        raise ValueError('Like operator operates only with strings!')
     reg = re.compile(right.replace('_', '.').replace('%', '.*'))
     res = reg.search(left)
     if res is None:

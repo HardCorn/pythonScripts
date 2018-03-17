@@ -96,7 +96,7 @@ def get_date_postfix(date=None, postfix_fmt=dt.MONTH_PARTITION_FMT, date_fmt=dt.
         return dt.datetime_to_str(cur_date, postfix_fmt)
 
 
-def read_str(row, row_map, delim, file_path=None):
+def read_str(row, row_map, delim, file_path=None, part_read=False, part_fmt=None):
     res_row = list()
     tmp_row = row.strip(' \t\n').split(delim)
     if len(tmp_row) > len(row_map):     # row_map не синхронизован со строкой - норма, переписать если короче - нет добавленных атрибутов
@@ -104,19 +104,37 @@ def read_str(row, row_map, delim, file_path=None):
     for num in range(len(tmp_row)):     # пытаемся привести все элементы к типам в соотв с row_map
         if tmp_row[num] == '':
             tmp = None
+        elif part_read and tmp_row[num] == 'None':
+            tmp = None
         elif row_map[num] == INTEGER_VALUE:
             tmp = int(dequoting(tmp_row[num]))
         elif row_map[num] == STRING_VALUE:
             tmp = dequoting(tmp_row[num])
         elif row_map[num] == DATE_VALUE:
-            tmp = dt.str_to_date(dequoting(tmp_row[num]))
+            if not part_read:
+                tmp = dt.str_to_date(dequoting(tmp_row[num]))
+            else:
+                try:
+                    tmp = dt.dateRange(dequoting(tmp_row[num]), part_fmt)
+                except dt.dateRange.StopRange:
+                    tmp = dt.str_to_date(dequoting(tmp_row[num]))
         elif row_map[num] == DATETIME_VALUE:
-            tmp = dt.str_to_datetime(dequoting(tmp_row[num]))
+            if not part_read:
+                tmp = dt.str_to_datetime(dequoting(tmp_row[num]))
+            else:
+                try:
+                    tmp = dt.dateRange(dequoting(tmp_row[num]), part_fmt)
+                except dt.dateRange.StopRange:
+                    tmp = dt.str_to_datetime(dequoting(tmp_row[num]))
         elif row_map[num] == FLOAT_VALUE:
             tmp = float(dequoting(tmp_row[num]))
         else:       # неизвестный тип данных, поддерживаются только целые числа, даты и строки
             raise er.ModelReadError('Incorrect row map: {}'.format(row_map))
         res_row.append(tmp)
+    diff = len(row_map) - len(tmp_row)  # атрибуты которые есть в метаданных и отсутствуют в строке
+    if diff > 0:                        # если они есть
+        for _ in range(diff):           # дописываем None вместо них
+            res_row.append(None)
     return res_row
 
 
@@ -870,6 +888,7 @@ class ModelFileWorker:
         if fltr is None:
             return tmp
         lst = self._get_partition_header(header)
+        fltr.set_row_head(lst)
         if lst is None:
             return [DEFAULT_SINGLE_PARTITION_VAL]
         if len(tmp) == 1:
@@ -878,28 +897,22 @@ class ModelFileWorker:
         for num in range(len(header[ATTRIBUTE_KEY])):
             if header[ATTRIBUTE_KEY][num + 1][ATTRIBUTE_NAME_KEY] in lst:
                 part_map.append(header[ATTRIBUTE_KEY][num + 1][ATTRIBYTE_TYPE_KEY])
+        fmt = None
+        for num in range(len(part_map)):
+            each = part_map[num]
+            if each in (DATE_VALUE, DATETIME_VALUE):
+                fmt = header[PARTITION_ATTRIBUTE_KEY][num + 1][PARTITION_FIELD_FORMAT]
+                break
         result = list()
         for each in tmp:
-            temp_str = read_str(each, part_map, header[FILE_DELIMITER_KEY], 'header')
+            temp_str = read_str(each, part_map, header[FILE_DELIMITER_KEY], 'header', True, fmt)
             if fltr.resolve(temp_str):
                 result.append(each)
         return result
 
 
 if __name__ == '__main__' and DEBUG:
-    pass
-    # meta = {DATA_PATH: 'D:\\Users\\HardCorn\\Desktop\\python\\pyCharm\\myScripts\\Buh\\testing_data\\'}
-    # meta = {'s': {
-    #     ATTRIBUTE_KEY : {1: {ATTRIBUTE_NAME_KEY: 'd', ATTRIBYTE_TYPE_KEY: STRING_VALUE}},
-    #     PARTITION_FILES_KEY : {'1;2;3': 's.data'},
-    #     PK_ATTRIBUTE_KEY : 1,
-    #     INDEX_FILE_KEY : {},
-    #     PARTITION_ATTRIBUTE_KEY : {}
-    # }, DATA_PATH: 'D:\\Users\\HardCorn\\Desktop\\python\\pyCharm\\myScripts\\Buh\\testing_data\\'}
-    # write_header(meta, 's')
-    # read_header(meta, 's')
-    # print(meta['s'])
-    a = ModelFileWorker(note)
+    a = ModelFileWorker(home)
     print(a.del_model_files('New_model'))
     attrs_dict = {'key_field': 'str',
                   'info_field1': 'str',
@@ -929,10 +942,9 @@ if __name__ == '__main__' and DEBUG:
     fltr = mu.Filter()
     fltr.set_clause("key_field not in ('k1', 'k2')")
     print(a.read_model_data('New_model', selected=sel, filter_=fltr))
+    fltr.set_clause('date_field is not None')
+    print(a.model_meta['New_model'][PARTITION_FILES_KEY])
+    print(a.get_parts_list('New_model', fltr))
     print(a.read_model_data('New_model'))
     print(a.get_file_map('New_model'))
     print(a._get_row_map('New_model'))
-    # print(datetime_to_str(dt.datetime(2017,8,5,4,12,33,55)))
-    # c = str_to_datetime('2017-08-05 04:12:33.000055')
-    # print(get_date_postfix('2017-08-05 04:12:33.000055', date_fmt=DATETIME_DEFAULT_FMT))
-    # print(get_model_data_ name('n', DEFAULT_SINGLE_PARTITION_VAL))
