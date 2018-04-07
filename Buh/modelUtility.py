@@ -14,10 +14,6 @@ def build_simple_view(list_str, key):
     return res_dict
 
 
-def build_view(list_str, key, attrs, check_actuality=False):
-    pass
-
-
 class Filter:
     def __init__(self):
         self.expr = None
@@ -47,6 +43,7 @@ class Filter:
         if type(self.expr) == bool:
             return self.expr
         try:
+            self.expr.reset(dict())
             return self.expr.evaluate()
         except:
             return None

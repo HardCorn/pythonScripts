@@ -6,6 +6,9 @@ import osExtension as oe
 import modelExceptions as me
 
 
+# Все модели создаем в режиме REPLACE, чтобы не добавлять лишних атрибутов
+
+
 WORKERS_MODEL_NAME = 'Workers'
 MODELS_MODEL_NAME = 'Models'
 CONFIG_MODEL_NAME = 'Config'
@@ -25,9 +28,18 @@ ATTR_ID = 'row_id'
 ATTR_WORKER_NAME = 'worker_name'
 ATTR_WORKER_DIR = 'data_directory'
 META_DEFAULT_DELIMITER = '|^|'
+CONFIG_DELIMITER = '|^^|'
 MAIN_BASE_NAME = 'Main'
 DEFAULT_WORKER_NAME = 'default_worker'
 DEFAULT_DELIMITER_NAME = 'default_delimiter'
+DEFAULT_VIEW_TYPE_NAME = 'default_view_type'
+VIEW_DATA = 'dictionary'
+SIMPLE_DATA = 'simple'
+ZIP_DATA_NAME = 'zip_data'                      #пока не планируется реализовывать
+NOT_ZIP_DATA = 'no'
+ZIP_DATA = 'yes'
+DEFAULT_MODEL_LOAD_MODE = 'default_load_mode'
+
 
 
 MODEL_WORKERS_DICT = {
@@ -72,7 +84,7 @@ MODEL_MODELS_DICT = {
     'delim': META_DEFAULT_DELIMITER,
     'defaults': {ATTR_MODEL_CREATED: dt.ACTUALITY_DTTM_VALUE},
     'hide': ATTR_ID,
-    'load_mode': mf.APPEND_MODE
+    'load_mode': mf.REPLACE_MODE
 }
 
 
@@ -84,7 +96,7 @@ MODEL_CONFIG_DICT = {
     },
     'key': ATTR_CONFIG_NAME,
     'partition': None,
-    'delim': META_DEFAULT_DELIMITER,
+    'delim': CONFIG_DELIMITER,
     'defaults': None,
     'hide': None,
     'load_mode': mf.REPLACE_MODE
@@ -93,35 +105,38 @@ MODEL_CONFIG_DICT = {
 
 DEFAULT_CONFIG_DICT = {
     DEFAULT_WORKER_NAME: MAIN_BASE_NAME,
-    DEFAULT_DELIMITER_NAME: META_DEFAULT_DELIMITER
+    DEFAULT_DELIMITER_NAME: META_DEFAULT_DELIMITER,
+    ZIP_DATA_NAME: NOT_ZIP_DATA,
+    DEFAULT_VIEW_TYPE_NAME: VIEW_DATA,
+    DEFAULT_MODEL_LOAD_MODE: mf.REPLACE_MODE
 }
 
 
-def get_self_dir():
-    return os.path.curdir
+# def get_self_dir():
+#     return os.path.curdir
 
 
-def revalidate_path(path, recursive=False):
-    if not recursive:
-        if not os.path.exists(path):
-            os.mkdir(path)
-            return False
-        return True
-    else:
-        path = path.strip(os.path.sep)
-        tmp_path = path.split(os.path.sep)
-        pth = tmp_path[0] + os.path.sep
-        res = True
-        for each in tmp_path[1 :]:
-            pth = os.path.join(pth, each)
-            if not os.path.exists(pth):
-                os.mkdir(pth)
-                res = False
-        return res
+# def revalidate_path(path, recursive=False):
+#     if not recursive:
+#         if not os.path.exists(path):
+#             os.mkdir(path)
+#             return False
+#         return True
+#     else:
+#         path = path.strip(os.path.sep)
+#         tmp_path = path.split(os.path.sep)
+#         pth = tmp_path[0] + os.path.sep
+#         res = True
+#         for each in tmp_path[1 :]:
+#             pth = os.path.join(pth, each)
+#             if not os.path.exists(pth):
+#                 os.mkdir(pth)
+#                 res = False
+#         return res
 
 
-def chek_file(path):
-    return os.path.exists(path)
+# def chek_file(path):
+#     return os.path.exists(path)
 
 
 def get_meta_path(home_dir):
@@ -156,14 +171,14 @@ def drop_all(home_dir, save_income_path=False):
 
 
 def create_meta(home_dir=None):
-    home_dir = home_dir or get_self_dir()
+    home_dir = home_dir or oe.get_self_dir()
     meta_dir = get_meta_path(home_dir)
     data_dir = get_data_path(home_dir)
     main_base_dir = data_dir + MAIN_BASE_NAME + '\\'
-    revalidate_path(home_dir, True)
-    revalidate_path(meta_dir)
-    revalidate_path(data_dir)
-    revalidate_path(main_base_dir)
+    oe.revalidate_path(home_dir, True)
+    oe.revalidate_path(meta_dir)
+    oe.revalidate_path(data_dir)
+    oe.revalidate_path(main_base_dir)
     worker = mf.ModelFileWorker(meta_dir)
     worker.create_model(**MODEL_WORKERS_DICT)
     worker.insert_simple_data(WORKERS_MODEL_NAME, [MAIN_BASE_NAME, main_base_dir],
@@ -182,11 +197,31 @@ def add_worker(meta_worker : mf.ModelFileWorker, home_dir, worker_name):
     return mf.ModelFileWorker(path)
 
 
-def add_model(meta_worker : mf.ModelFileWorker, worker_name, model_name, model_header):
+def drop_worker(meta_worker : mf.ModelFileWorker, worker_name, worker_path, filter):
+    in_clause = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\''
+    out_clause = ATTR_MODEL_WORKER + ' <> \'' + worker_name + '\''
+    filter.set_clause(in_clause)
+    parts = meta_worker.get_parts_list(MODELS_MODEL_NAME, filter)
+    meta_worker.drop_partition(MODELS_MODEL_NAME, parts)
+    filter.set_clause(out_clause)
+    data = meta_worker.read_model_data(IDS_MODEL_NAME, filter_=filter)
+    if len(data) > 0:
+        meta_worker.write_model_data(IDS_MODEL_NAME, data, brutal=True)
+    else:
+        meta_worker.trancate_model_data(IDS_MODEL_NAME)
+    data = meta_worker.read_model_data(WORKERS_MODEL_NAME, filter_=filter)
+    if len(data) > 0:
+        meta_worker.write_model_data(WORKERS_MODEL_NAME, data, brutal=True)
+    else:
+        meta_worker.trancate_model_data(WORKERS_MODEL_NAME)
+    del data
+    oe.extended_remove(worker_path, recursive=True, save_income_path=False)
+
+
+def add_model(meta_worker : mf.ModelFileWorker, worker_name, model_name, model_header, fltr : mu.Filter):
     lst_ = list()
     parts = list()
     condition = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
-    fltr = mu.Filter()
     fltr.set_clause(condition)
     id = meta_worker.read_model_data(IDS_MODEL_NAME, filter_=fltr, selected=ATTR_ID_GEN_MAX)
     if len(id) == 0:
@@ -205,7 +240,11 @@ def add_model(meta_worker : mf.ModelFileWorker, worker_name, model_name, model_h
             inn_lst.append(1)
         else:
             inn_lst.append(0)
-        inn_lst += [attr[mf.OPTION_HIDE_KEY], attr[mf.OPTION_DEFAULT_KEY]]
+        if attr[mf.OPTION_HIDE_KEY]:
+            inn_lst.append(1)
+        else:
+            inn_lst.append(0)
+        inn_lst.append(str(attr[mf.OPTION_DEFAULT_KEY]))
         lst_.append(inn_lst)
     attr_list = [ATTR_ID, ATTR_MODEL_WORKER, ATTR_MODEL_MODEL, ATTR_MODEL_ATTR_NAME, ATTR_MODEL_ATTR_TYPE,
                  ATTR_MODEL_PARTITION, ATTR_MODEL_HIDE, ATTR_MODEL_DEFAULT]
@@ -241,12 +280,24 @@ class ModelMeta:
 
     def add_data_worker(self, worker_name):
         path = get_worker_path(self.model_path, worker_name)
+        if os.path.exists(path):
+            raise me.ModelMetaException('Add data worker Error', 'Worker called {} already exist!'.format(worker_name))
         oe.revalidate_path(path)
         self.data_workers[worker_name] = add_worker(self.worker, self.model_path, worker_name)
         return self.data_workers[worker_name]
 
+    def drop_data_worker(self, worker_name):
+        path = get_worker_path(self.model_path, worker_name)
+        if not (os.path.exists(path)):
+            raise me.ModelMetaException('Drop data worker Error', 'Worker called {} does not exist!'.format(worker_name))
+        if worker_name not in self.data_workers:
+            raise me.ModelMetaException('Drop data worker Error', 'Worker called {} not found in model metadata!'.format(worker_name))
+        drop_worker(self.worker, worker_name, path, self.filter)
+        del self.data_workers[worker_name]
+
+
     def add_data_model(self, worker_name, model_name, model_header):
-        add_model(self.worker, worker_name, model_name, model_header)
+        add_model(self.worker, worker_name, model_name, model_header, self.filter)
 
     def reset_config_to_default(self):
         set_default_config(self.worker)
@@ -259,7 +310,11 @@ class ModelMeta:
 
     def modify_data_model(self, worker_name, model_name, model_header):
         self.drop_data_model(worker_name, model_name)
-        add_model(self.worker, worker_name, model_name, model_header)
+        add_model(self.worker, worker_name, model_name, model_header, self.filter)
+
+    # def get_id
+
+    # def set_id
 
 if __name__ == '__main__':
     pass

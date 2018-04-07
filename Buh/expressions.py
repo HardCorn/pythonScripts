@@ -255,6 +255,10 @@ class LogicExpr(Expression):    # класс для описания логич�
             except Exception:
                 raise ExpressionError('LogicExpr', 'evaluation', 'can\'t compare {0} and {1}'.format(left, right))
         func = op.get_function(self.operator)
+        if isinstance(left, str):
+            left = left.lower()
+        if isinstance(right, str):
+            right = right.lower()
         return func(left, right)
 
 

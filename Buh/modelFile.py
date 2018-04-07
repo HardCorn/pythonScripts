@@ -3,6 +3,7 @@ import dates as dt
 import json as js
 import modelExceptions as er
 import modelUtility as mu
+import osExtension as oe
 
 """
     Данные в моделях лежат в текстовых файлах с разделителями и разрешение .data
@@ -346,7 +347,7 @@ class ModelFileWorker:
                     each, model_name
                 ))
         for num in range(len(attr_dict)):
-            if attr_dict[num + 1][ATTRIBUTE_NAME_KEY] != attr_list[num]:
+            if num >= len(attr_list) or attr_dict[num + 1][ATTRIBUTE_NAME_KEY] != attr_list[num]:
                 return False
         return True
 
@@ -452,7 +453,8 @@ class ModelFileWorker:
             self.del_model_files(name)                      # удаляем всю модель
             os.mkdir(self.model_meta[DATA_PATH]+ name)      # создаем директорию для данных
             self._change_header(name, header)               # подменяем заголовок
-        self.write_model_data(name, list_str, brutal=True)  # пишем данные с перезаписью на всякий случай
+        if len(list_str) > 0:
+            self.write_model_data(name, list_str, brutal=True)  # пишем данные с перезаписью на всякий случай
 
     def _read_partition(self, model_name, part_name=DEFAULT_SINGLE_PARTITION_VAL, sel_attrs=None, file_map=None,
                         filter_=None):
@@ -854,12 +856,12 @@ class ModelFileWorker:
             raise er.ModelModifyError('Drop partition', 'Partition name can not be None!')
         header = self.get_model_header(model_name)
         part_dict = header[PARTITION_FILES_KEY]
-        for each in part_dict:
-            if each not in part_list:
+        for each in part_list:
+            if each not in part_dict:
                 if not ignore_part_err:
                     raise er.ModelModifyError('Drop partition', 'can\'t find \'{}\' partition'.format(each))
             else:
-                part_path =  part_dict[each]
+                part_path = os.path.join(self.model_meta[DATA_PATH], part_dict[each])
                 try:
                     os.remove(part_path)
                 except IOError:
@@ -914,6 +916,16 @@ class ModelFileWorker:
         if model_name not in self.model_meta:
             self._read_header(model_name)
         return self.model_meta[model_name][PK_ATTRIBUTE_KEY]
+
+    def trancate_model_data(self, model_name):
+        if model_name not in self.model_meta:
+            self._read_header(model_name)
+        header = self.model_meta[model_name]
+        path = os.path.join(self.model_meta[DATA_PATH], model_name)
+        oe.extended_remove(path, recursive=True)
+        header[PARTITION_FILES_KEY] = dict()
+        self._change_header(model_name, header)
+
 
 
 if __name__ == '__main__' and DEBUG:
