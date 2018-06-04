@@ -9,6 +9,10 @@ class ModelViewException(BaseModelException):
     pass
 
 
+class ModelTemplateException(BaseModelException):
+    pass
+
+
 class FilterException(BaseModelException):
     pass
 

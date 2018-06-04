@@ -56,6 +56,8 @@ def str_to_type(str_, convert_types=True, inner_quotes=True, date_format=dt.DATE
             return True
         if str_.lower() == 'false':
             return False
+        if str_ == 'None':
+            return None
         if str_.isnumeric():
             return int(str_)
         if str_.count('.') == 1 and str_.replace('.', '').isnumeric():
@@ -139,39 +141,51 @@ def _str_quotation_split(str_, inner_quotes=True):      # дробилка од�
     return res
 
     
-def _str_split(str_, symbol, symbol_list, delimiter=False, pass_qouted=True, check_borders=False, borders=None):   # разрезание строки по символу
+def _str_split(str_, symbol, symbol_list, delimiter=False, pass_qouted=True, check_borders=False, borders=None,
+               case_insensitive=True):   # разрезание строки по символу
     if is_quoted(str_) and pass_qouted:         # если получили строку в кавычках - просто возвращаем ее
         return str_
+    if case_insensitive:
+        tmp_symb_list = [each.lower() for each in symbol_list]
+        tmp2_str = str_.lower()
+        tmp_symbol = symbol.lower()
+    else:
+        tmp_symb_list = symbol_list
+        tmp2_str = str_
+        tmp_symbol = symbol
     if symbol_list is not None:                 # если получили один из символов - так же возвращаем его
-        if str_ in symbol_list:
+        if tmp2_str in tmp_symb_list:
             return str_
     if delimiter:                               # если работаем в режиме простого разделителя - пользуемсявстроенной функцией
         return str_.split(symbol)
     else:
-        tmp_str = str_
+        tmp_str = tmp2_str
+        orig_str = str_
         result = list()
-        fnd = tmp_str.find(symbol)              # ищем символ в строке
+        fnd = tmp_str.find(tmp_symbol)              # ищем символ в строке
         while fnd != -1:
-            if not check_borders or check_symbol_borders(tmp_str, symbol, fnd, borders):
+            if not check_borders or check_symbol_borders(tmp_str, tmp_symbol, fnd, borders):
                 if fnd != 0:                        # если он не в начале строки пишем начало строки до символа
-                    result.append(tmp_str[:fnd])
+                    result.append(orig_str[:fnd])
                 result.append(symbol)               # приписываем сам символ
                 tmp_str = tmp_str[fnd + len(symbol):]   # обрезаем строку
-                fnd = tmp_str.find(symbol)          # снова ищем
+                orig_str = orig_str[fnd + len(symbol):]
+                fnd = tmp_str.find(tmp_symbol)          # снова ищем
             else:
-                fnd = tmp_str.find(symbol, fnd + 1)
-        if tmp_str != '':                       # если после последнего символа осталось что-то - дописываем в конец
-            result.append(tmp_str)
+                fnd = tmp_str.find(tmp_symbol, fnd + 1)
+        if orig_str != '':                       # если после последнего символа осталось что-то - дописываем в конец
+            result.append(orig_str)
         return result
         
 
-def _obj_split(obj_, symbol, symbol_list, delimiter=False, pass_qouted=True, check_borders=False, borders=None):   # обертка разрезалки строки - работает со строками и списками строк
+def _obj_split(obj_, symbol, symbol_list, delimiter=False, pass_qouted=True, check_borders=False, borders=None,
+               case_insensitive=True):   # обертка разрезалки строки - работает со строками и списками строк
     if type(obj_) == str:
-        return _str_split(obj_, symbol, symbol_list, delimiter, pass_qouted, check_borders, borders=borders)
+        return _str_split(obj_, symbol, symbol_list, delimiter, pass_qouted, check_borders, borders=borders, case_insensitive=case_insensitive)
     elif type(obj_) == list:
         res = list()
         for each in obj_:
-            tmp_res = _str_split(each, symbol, symbol_list, delimiter, pass_qouted, check_borders, borders=borders)
+            tmp_res = _str_split(each, symbol, symbol_list, delimiter, pass_qouted, check_borders, borders=borders, case_insensitive=case_insensitive)
             if type(tmp_res) == str:
                 res.append(tmp_res)
             else:
@@ -196,7 +210,7 @@ def _str_list_to_type(obj_, convert_types, inner_quotes, date_format, datetime_f
     return result
 
 
-def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=True,
+def smart_split(str_, symbol_list=None, delimiter_list=None, case_insensitive=True, do_quotation_split=True,
                 do_clean=True, convert_types=True, convert_tuples=True, check_symbols=True,
                 date_format=dt.DATE_DEFAULT_FMT, datetime_format=dt.DATETIME_DEFAULT_FMT):  # сама разрезалка
     """
@@ -216,6 +230,7 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
     :param str_: исходная строка
     :param symbol_list: список элементов-разделителей которые необходимо оставить в результирующем списке; по умолчанию - None
     :param delimiter_list: список символов-разделителей - можно передавать строкой, списком, кортежем - не сохраняются в итоговом списке; по умолчанию - None
+    :param case_insensitive: флаг нечувствительности к регистру (True - регистр будет игнорироваться)
     :param do_quotation_split: флаг сохранения заковыченных элементов отдельными элементами списка; по умолчанию - True
     :param do_clean: флаг очищения итогового списка от пустых элементов и служебных символов/концевых пробелов; по умолчанию - True
     :param convert_types: флаг необходимости преобразования базовых типов данных(int, float, date, datetime, bool); по умолчанию - True
@@ -249,13 +264,13 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
         if len(symbol_list) != 0:
             sorted_list = _symbol_sort(symbol_list) # сортируем символы
             for symbol in sorted_list:              # по полученному списку режем строку
-                result = _obj_split(result, symbol, symbol_list, check_borders=check_symbols, borders=borders)
+                result = _obj_split(result, symbol, symbol_list, check_borders=check_symbols, borders=borders, case_insensitive=case_insensitive)
         else:                                       # если на входе получили пустую строку/пустой список - просто делаем split()
             if type(result) == str:
                 result = result.split()
     if delimiter_list is not None:                  # если получили список разделителей - нарезаем еще и по ним
         for each in delimiter_list:
-            result = _obj_split(result, each, symbol_list, delimiter=True)
+            result = _obj_split(result, each, symbol_list, delimiter=True, case_insensitive=case_insensitive)
     if do_clean and type(result) == list:           # чистим список
         result = _str_list_cleaner(result)
     if (convert_types or inner_quotes) and type(result) == list :   # преобразуем элементы списка
@@ -266,9 +281,9 @@ def smart_split(str_, symbol_list=None, delimiter_list=None, do_quotation_split=
 
 
 if __name__ == '__main__':
-    test_str_5 = "1=0 andy 1 not is not none in '''2'''  and '2' = '' or some_attr = '''2012-12-31'''or('2018-01-01' < '2018-01-02') and self_name is none ('22','33','44')"
+    test_str_5 = "1=0 Andy 1 not iS not nONe in '''2'''  and '2' = '' or some_attr = '''2012-12-31'''or('2018-01-01' < '2018-01-02') and self_name is none ('22','33','44')"
     test_str_6 = "'''1014 - 33 - 33'''"
-    oper_list = ['<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'not', 'is none', 'is not none',
+    oper_list = ['<', '>', '=', '<=', '>=', '<>', 'in', 'not in', 'like', 'and', 'or', 'nOt', 'is none', 'is NOT none',
                  '+', '-', '*', '/', '**', '(', ')']
     test_res = smart_split(test_str_5, oper_list)
     print(test_str_5)

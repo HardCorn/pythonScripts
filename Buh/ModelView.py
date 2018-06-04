@@ -14,13 +14,18 @@ def check_type(data):
 
 
 class ModelView:
-    def __init__(self, data, build_view=False, key=None, row_map=None):
+    def __init__(self, name, data, build_view=False, key=None, row_map=None):
         check_type(data)
+        self.name = name
         self.data = data
         self.view = False
         self.key = key
         self.row_map = row_map
         if build_view:
+            self.convert_to_view()
+
+    def convert_to_view(self):
+        if not self.view:
             self.data = self.build_view()
             self.view = True
 
@@ -28,12 +33,12 @@ class ModelView:
         key = self.key
         row_map = self.row_map
         if not isinstance(key, int) or not isinstance(row_map, list):
-            raise me.ModelViewException('Build View Error', 'Can\'t build view with key = {0} and row_map = {1}'.format(
+            raise me.ModelViewException(self.name, 'Build View Error', 'Can\'t build view with key = {0} and row_map = {1}'.format(
                 key, row_map
             ))
         key = key - 1
         if key not in range(len(row_map)):
-            raise me.ModelViewException('Build View Error', 'Incorrect key: {}'.format(key))
+            raise me.ModelViewException(self.name, 'Build View Error', 'Incorrect key: {}'.format(key))
         res_dict = dict()
         actuality_dict = dict()
         if ACTUALITY_FIELD_NAME in row_map:
@@ -46,7 +51,7 @@ class ModelView:
         for each in self.data:
             inner_dict = dict()
             if len(row_map) != len(each):
-                raise me.ModelViewException('View build Error', 'metadata desync: row: \'{0}\', row_map: \'{1}\''.format(
+                raise me.ModelViewException(self.name, 'View build Error', 'metadata desync: row: \'{0}\', row_map: \'{1}\''.format(
                                                 each, row_map
                                             ))
             for num in range(len(each)):
@@ -66,17 +71,26 @@ class ModelView:
     def __getitem__(self, item):
         if not self.view:
             if not isinstance(item, int):
-                raise me.ModelViewException('Get item Error', 'Current instance contains simple data, not a view!')
+                raise me.ModelViewException(self.name, 'Get item Error', 'Current instance contains simple data, not a view!',
+                                            'Can\'t get item \'{}\''.format(item))
             elif item >= len(self.data):
-                raise me.ModelViewException('Get item Error', 'Data index could be only between {0} and {1}, (got {2})'.format(
+                raise me.ModelViewException(self.name, 'Get item Error', 'Data index could be only between {0} and {1}, (got {2})'.format(
                     0, len(self.data) - 1, item
+                ))
+        else:
+            if item not in self.data:
+                raise me.ModelViewException('Get item Error', self.name, 'Item \'{}\' not found!'.format(
+                    item
                 ))
         res_tmp = self.data[item]
         res = dict()
-        for each in res_tmp:
-            res[each] = res_tmp[each]
         if self.view:
+            for each in res_tmp:
+                res[each] = res_tmp[each]
             res[self.row_map[self.key - 1]] = item
+        else:
+            for each in range(len(self.row_map)):
+                res[self.row_map[each]] = self.data[item][each]
         return res
 
     def get_data(self, build_view=False):
@@ -91,8 +105,9 @@ class ModelView:
 
 if __name__ == '__main__':
     data = [['a', 1, 4], ['b', 2, 5]]
-    a = ModelView(data, True, 1, ['name', 'key', 'value'])
+    a = ModelView('tst_data',data, True, 1, ['name', 'key', 'value'])
     print(a.data, a.view)
+    a.convert_to_view()
     print(a['a'])
-    dt = a.get_data(True)
+    dt = a.get_data(False)
     print(dt)
