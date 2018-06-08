@@ -116,6 +116,24 @@ class ModelTemplate:
 
 def create_models_from_file(file_path, json_dict_file=False):
     if not json_dict_file:
+        class ParserError(me.ModelTemplateException):
+            def __init__(self, *args):
+                self.string = 'Create model from file: ' + file_path + ': script parsing error'
+                self.args = args
+
+            def __str__(self):
+                list = [self.string] + self.args
+                return ': '.join(list)
+
+        class InvalidScript(me.ModelTemplateException):
+            def __init__(self, *args):
+                self.string = 'Create model from file: ' + file_path + ': invalid script'
+                self.args = args
+
+            def __str__(self):
+                list = [self.string] + self.args
+                return ': '.join(list)
+
         models = list()
         symbol_list = ['attr', 'name', 'default', 'hide', 'key', 'delimiter', 'loading mode', ',', 'worker', ';',
                        ')', '(', 'attrs', 'partition']
@@ -145,12 +163,10 @@ def create_models_from_file(file_path, json_dict_file=False):
                 else:
                     attr_end = lo.find_obj(row, (',', ')'), start_ = current + 1, list_obj=True)
                     if attr_end == -1:
-                        raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                        'attribute definition end not found for model {}'.format(tmp_model.name))
+                        raise InvalidScript('attribute definition end not found for model {}'.format(tmp_model.name))
                     current += 1
                     if current + 2 > attr_end:
-                        raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                        'attribute definition error', 'attribute name and type required! (model {})'.format(
+                        raise InvalidScript('attribute definition error', 'attribute name and type required! (model {})'.format(
                                 tmp_model.name
                             ))
                     attr_dict = {'attr_name': row[current]}
@@ -165,8 +181,7 @@ def create_models_from_file(file_path, json_dict_file=False):
                                 attr_dict['partition'] = row[current + 1]
                                 current += 2
                             else:
-                                raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                                'attribute definition error: partition format not found')
+                                raise InvalidScript('attribute definition error', 'partition format not found')
                         elif row[current] == 'key':
                             attr_dict['key'] = True
                             current += 1
@@ -175,46 +190,40 @@ def create_models_from_file(file_path, json_dict_file=False):
                                 attr_dict['default'] = row[current + 1]
                                 current += 2
                             else:
-                                raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                                'attribute definition error: default value not found after \'default\' keyword')
+                                raise InvalidScript('attribute definition error: default value not found after \'default\' keyword')
                         else:
-                            raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                            'attribute definition error', 'unknown keyword \'{}\''.format(row[current]))
+                            raise InvalidScript('attribute definition error', 'unknown keyword \'{}\''.format(row[current]))
                     if current != attr_end:
-                        raise me.ModelTemplateException('Create model from fiel', file_path, 'script parsing error',
-                                                        'current = {0}, attr_end = {1}'.format(current, attr_end))
+                        raise ParserError('attribute definition out of bounds (parsing \'attrs\' statement)',
+                                          'current = {0} ({2}), attr_end = {1} ({3})'.format(current, attr_end, row[current], row[attr_end]))
                     tmp_model.add_attr(**attr_dict)
             elif row[current] == 'attrs':
                 if next_word == '(':
                     attr_flg = True
                     current += 1
                 else:
-                    raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                    'expect \'(\' after \'attrs\' keyword, but {} found'.format(next_word))
+                    raise ParserError('expect \'(\' after \'attrs\' keyword, but {} found'.format(next_word))
             elif row[current] == 'name':
                 if tmp_model.name == '' and current + 1 <= length:
                     tmp_model.set_model_name(row[current + 1])
                     current += 2
                 elif tmp_model.name != '':
-                    raise me.ModelTemplateException('Create model from file', file_path, 'Current model already has a name')
+                    raise InvalidScript('Current model ({}) already has a name'.format(tmp_model.name))
                 else:
-                    raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                    'expect a model name after \'name\' keyword, but {} found'.format(next_word))
+                    raise InvalidScript('expect a model name after \'name\' keyword, but {} found'.format(next_word))
             elif row[current] == 'worker':
                 if current + 1 <= length:
                     tmp_model.worker = row[current + 1]
                     current += 2
                 else:
-                    raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                    'expect a worker name after \'worker\' keyword, but {} found'.format(next_word))
+                    raise InvalidScript('expect a worker name after \'worker\' keyword, but {} found'.format(next_word))
             elif row[current] == 'attr':
                 next_model = next_keyword
                 if next_model == -1:
                     next_model = length
                 if next_model - current < 2:
-                    raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                    'incorrect syntax of \'attr\' keyword: \'attr name type\' expected, but'/
-                                                    ' {} found'.format('attr' + ' '.join(row[current : next_model])))
+                    raise InvalidScript('incorrect syntax of \'attr\' keyword: \'attr name type\' expected, but {0} found for model {1}'.format(
+                                                        'attr' + ' '.join(row[current : next_model]), tmp_model.name))
                 tmp_model.add_attr(row[current + 1], row[current + 2])
                 current += 3
             elif row[current] == 'partition':
@@ -225,8 +234,7 @@ def create_models_from_file(file_path, json_dict_file=False):
                     if next_keyword - current != 3 or row[next_keyword] != ',':
                         inner_repeat = False
                     elif next_keyword - current != 3 and next_keyword != -1:
-                        raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                        'incorrect partition attribute option value: {}'.format(row[current+1 : next_keyword]))
+                        raise InvalidScript('incorrect partition attribute option value: {}'.format(row[current+1 : next_keyword]))
                     pt_dict[row[current + 1]] = row[current + 2]
                     current += 3
                 tmp_model.add_partitions(pt_dict)
@@ -238,8 +246,7 @@ def create_models_from_file(file_path, json_dict_file=False):
                     if next_keyword - current != 3 or row[next_keyword] != ',':
                         inner_repeat = False
                     elif next_keyword - current != 3 and next_keyword != -1:
-                        raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                        'incorrect default attribute option value: {}'.format(row[current+1 : next_keyword]))
+                        raise InvalidScript('incorrect default attribute option value: {}'.format(row[current+1 : next_keyword]))
                     df_dict[row[current + 1]] = row[current + 2]
                     current += 3
                 tmp_model.add_defaults(df_dict)
@@ -248,42 +255,36 @@ def create_models_from_file(file_path, json_dict_file=False):
                     tmp_model.set_key(row[current + 1])
                     current += 2
                 else:
-                    raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                    'loading mode name not found after \'loading mode\' keyword')
+                    raise InvalidScript('loading mode name not found after \'loading mode\' keyword')
             elif row[current] == 'hide':
-                hd_list = list()
-                inner_repeat = True
-                while inner_repeat:
-                    next_keyword = lo.find_obj(row, symbol_list, start_=current + 1, list_obj=True)
-                    if next_keyword - current != 2 or row[next_keyword] != ',':
-                        inner_repeat = False
-                    elif next_keyword - current != 2 and next_keyword != -1:
-                        raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                        'incorrect hide attribute option value: {}'.format(row[current+1 : next_keyword]))
-                    hd_list.append(row[current + 1])
+                if next_keyword - current == 2 or (next_keyword == -1 and length - current == 1):
+                    hd_list = row[current + 1]
+                    tmp_model.hide_attrs(hd_list)
                     current += 2
-                tmp_model.hide_attrs(hd_list)
+                else:
+                    if next_keyword == -1:
+                        next_keyword = length
+                    raise InvalidScript('incorrect hide attribute option value! \'hide(attr1, attr2,...)\' required, but {} found'.format(
+                        'hide ' + ' '.join(row[current: next_keyword])
+                    ))
             elif row[current] == 'loading mode':
                 if current + 1 <= length:
                     tmp_model.set_model_name(row[current + 1])
                     current += 2
                 else:
-                    raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                    'loading mode name not found after \'loading mode\' keyword')
+                    raise InvalidScript('loading mode name not found after \'loading mode\' keyword')
             elif row[current] == 'delimiter':
                 if current + 1 <= length:
                     tmp_model.set_delimiter(row[current + 1])
                     current += 2
                 else:
-                    raise me.ModelTemplateException('Create model from file', file_path, 'incorrect script',
-                                                    'key attribute name not found after \'key\' keyword')
+                    raise InvalidScript('key attribute name not found after \'key\' keyword')
             elif row[current] == ';':
                 models.append(tmp_model)
                 tmp_model = ModelTemplate('')
                 current += 1
             else:
-                raise me.ModelTemplateException('Create model from file', file_path, 'script parsing error',
-                                                'unknown keyword \'{}\' found'.format(row[current]))
+                raise ParserError('unknown keyword \'{}\''.format(row[current]))
         return models
     else:
         with open(file_path, 'r') as f:
