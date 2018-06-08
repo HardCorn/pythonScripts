@@ -24,6 +24,11 @@ class ModelTemplate:
         self.hide = hide
         self.load_mode = load_mode
 
+    def __str__(self):
+        dic = self.compile(False)
+        dic['worker'] = self.worker
+        return str(dic)
+
     def set_delimiter(self, dlm):
         self.delim = dlm
 
@@ -44,8 +49,9 @@ class ModelTemplate:
         if not self.key:
             raise me.ModelTemplateException(self.name, 'Model Template Validation', 'Can\'t create model without key!')
 
-    def compile(self):
-        self.validate()
+    def compile(self, validate_flg=True):
+        if validate_flg:
+            self.validate()
         res = dict()
         res['attrs'] = self.attrs
         res['key'] = self.key
