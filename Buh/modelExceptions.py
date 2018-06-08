@@ -13,6 +13,10 @@ class ModelTemplateException(BaseModelException):
     pass
 
 
+class ModelManagerException(BaseModelException):
+    pass
+
+
 class FilterException(BaseModelException):
     pass
 

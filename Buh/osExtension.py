@@ -3,7 +3,7 @@ import functools as ft
 import datetime as dt
 
 
-def no_fall(err_type=IOError, log_path='D:\\simple_test\\log.txt'):
+def no_fall(err_type=IOError, log_path='C:\\simple_test\\log.txt'):
     def decorator(func):
         @ft.wraps(func)
         def wrapper(*args, **kwargs):
@@ -17,7 +17,7 @@ def no_fall(err_type=IOError, log_path='D:\\simple_test\\log.txt'):
     return decorator
 
 
-def logger(log_path='D:\\simple_test\\log.txt', word=''):
+def logger(log_path='C:\\simple_test\\log.txt', word=''):
     def decorator(func):
         @ft.wraps(func)
         def wrapper(*args, **kwargs):

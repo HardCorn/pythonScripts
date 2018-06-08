@@ -14,8 +14,10 @@ def check_type(data):
 
 
 class ModelView:
-    def __init__(self, name, data, build_view=False, key=None, row_map=None):
+    def __init__(self, name, data, build_view=False, key=None, row_map=None, hide=None):
         check_type(data)
+        hide = hide or list()
+        self.hide = hide
         self.name = name
         self.data = data
         self.view = False
@@ -41,11 +43,11 @@ class ModelView:
             raise me.ModelViewException(self.name, 'Build View Error', 'Incorrect key: {}'.format(key))
         res_dict = dict()
         actuality_dict = dict()
+        hide = list()
+        for each in self.hide:
+            hide.append(row_map.index(each))
         if ACTUALITY_FIELD_NAME in row_map:
-            for num in range(len(row_map)):
-                if row_map[num] == ACTUALITY_FIELD_NAME:
-                    actuality = num
-                    break
+            actuality = row_map.index(ACTUALITY_FIELD_NAME)
         else:
             actuality = -1
         for each in self.data:
@@ -55,7 +57,7 @@ class ModelView:
                                                 each, row_map
                                             ))
             for num in range(len(each)):
-                if num != key and row_map[num] != ACTUALITY_FIELD_NAME:
+                if num != key and num not in hide:
                     inner_dict[row_map[num]] = each[num]
             update_flg = True
             if actuality != -1:

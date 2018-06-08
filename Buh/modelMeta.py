@@ -4,6 +4,7 @@ import dates as dt
 import modelUtility as mu
 import osExtension as oe
 import modelExceptions as me
+import config
 
 
 # Все модели создаем в режиме REPLACE, чтобы не добавлять лишних атрибутов
@@ -39,6 +40,7 @@ ZIP_DATA_NAME = 'zip_data'                      #пока не планируе�
 NOT_ZIP_DATA = 'no'
 ZIP_DATA = 'yes'
 DEFAULT_MODEL_LOAD_MODE = 'default_load_mode'
+CONFIG_FILE_NAME = 'modelmeta.cfg'
 
 
 
@@ -152,19 +154,26 @@ def get_worker_path(home_dir, worker_name):
     return os.path.join(data_path, worker_name) + os.path.sep
 
 
-def set_default_config(worker : mf.ModelFileWorker):
-    res = list()
+def set_default_config(config : config.Config):
     for each in DEFAULT_CONFIG_DICT:
-        res.append([each, DEFAULT_CONFIG_DICT[each]])
-    worker.write_model_data(CONFIG_MODEL_NAME, res, [ATTR_CONFIG_NAME, ATTR_CONFIG_VALUE], brutal=True)
+        config[each] = DEFAULT_CONFIG_DICT[each]
+    config.save()
+    # res = list()
+    # for each in DEFAULT_CONFIG_DICT:
+    #     res.append([each, DEFAULT_CONFIG_DICT[each]])
+    # worker.write_model_data(CONFIG_MODEL_NAME, res, [ATTR_CONFIG_NAME, ATTR_CONFIG_VALUE], brutal=True)
 
 
-def get_config(worker : mf.ModelFileWorker):
-    data = worker.read_model_data(CONFIG_MODEL_NAME, selected=[ATTR_CONFIG_NAME, ATTR_CONFIG_VALUE])
-    res_dict = dict()
-    for each in data:
-        res_dict[each[0]] = each[1]
-    return res_dict
+# def get_config(worker : mf.ModelFileWorker):
+#     try:
+#         data = worker.read_model_data(CONFIG_MODEL_NAME, selected=[ATTR_CONFIG_NAME, ATTR_CONFIG_VALUE])
+#     except IOError:
+#         set_default_config(worker)
+#         data = DEFAULT_CONFIG_DICT
+#     res_dict = dict()
+#     for each in data:
+#         res_dict[each[0]] = each[1]
+#     return res_dict
 
 def drop_all(home_dir, save_income_path=False):
     oe.extended_remove(home_dir, recursive=True, ignore_errors=True, save_income_path=save_income_path)
@@ -186,7 +195,7 @@ def create_meta(home_dir=None):
     worker.create_model(**MODEL_ID_GEN_DICT)
     worker.create_model(**MODEL_MODELS_DICT)
     worker.create_model(**MODEL_CONFIG_DICT)
-    set_default_config(worker)
+    # set_default_config(worker)
     return worker
 
 
@@ -274,7 +283,10 @@ class ModelMeta:
             for each in data_workers:
                 each[1] = mf.ModelFileWorker(each[1])
             self.data_workers = mu.build_simple_view(data_workers, self.worker.get_model_key(WORKERS_MODEL_NAME))
-            self.config = get_config(self.worker)
+            conf_file = os.path.join(get_meta_path(home_dir), CONFIG_FILE_NAME)
+            self.config = config.Config(conf_file)
+            if len(self.config) == 0:
+                set_default_config(self.config)
         except:
             raise me.ModelMetaException('Error metadata initializing', 'Can\'t read model metadata, it\'s broken!')
 
@@ -300,8 +312,7 @@ class ModelMeta:
         add_model(self.worker, worker_name, model_name, model_header, self.filter)
 
     def reset_config_to_default(self):
-        set_default_config(self.worker)
-        self.config = get_config(self.worker)
+        set_default_config(self.config)
 
     def drop_data_model(self, worker_name, model_name):
         clause = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
@@ -311,6 +322,18 @@ class ModelMeta:
     def modify_data_model(self, worker_name, model_name, model_header):
         self.drop_data_model(worker_name, model_name)
         add_model(self.worker, worker_name, model_name, model_header, self.filter)
+
+    def get_model_hide_list(self, worker_name, model_name):
+        clause = ATTR_MODEL_WORKER + ' = \'' + worker_name, + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
+        part_list = self.worker.get_parts_list(MODELS_MODEL_NAME, self.filter.set_clause(clause))
+        clause = ATTR_MODEL_HIDE + ' = ' + str(1)
+        tmp_res = self.worker.read_model_data(MODELS_MODEL_NAME, part_list, filter_=self.filter.set_clause(clause),
+                                              selected=[ATTR_MODEL_ATTR_NAME])
+        res = list()
+        for each in tmp_res:
+            res.append(each[0])
+        return res
+
 
     # def get_id
 

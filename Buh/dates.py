@@ -49,7 +49,8 @@ def date_to_str(date_, fmt=DATE_DEFAULT_FMT):
         date_ = datetime.now().date()
     elif type(date_) == str:
         date_ = str_to_date(date_)
-    if type(date_) not in (date, dt.date):
+    # if type(date_) not in (date, dt.date):
+    if not isinstance(date_, dt.date):
         raise ValueError('Error conversion {0} to str: wrong type({1})'.format(str(date_), type(date_)))
     return date.strftime(date_, refmt(fmt))
 
