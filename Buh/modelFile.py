@@ -917,7 +917,7 @@ class ModelFileWorker:
             self._read_header(model_name)
         return self.model_meta[model_name][PK_ATTRIBUTE_KEY]
 
-    def trancate_model_data(self, model_name):
+    def truncate_model_data(self, model_name):
         if model_name not in self.model_meta:
             self._read_header(model_name)
         header = self.model_meta[model_name]

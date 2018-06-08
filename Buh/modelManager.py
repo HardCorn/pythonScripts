@@ -144,15 +144,28 @@ class ModelManager:
             else:
                 build_view_flg = False
         if not isinstance(build_view_flg, bool):
-            raise me.ModelManagerException('Read model data Error', 'incorrect value for build_view_flg: boolean value required, but {} found'.format(
+            raise me.ModelManagerException('Read model data Error', model_name, 'partition_filter \'{0}\', data_filter \'{1}\''.format(
+                partition_filter, data_filter
+            ), 'incorrect value for build_view_flg: boolean value required, but {} found'.format(
                 build_view_flg
             ))
         view = mv.ModelView(model_name, data, build_view_flg, worker.get_model_key(model_name), worker._get_row_map(model_name),
                             self.meta.get_model_hide_list(worker_name, model_name))
         return view
 
-    def write_model_data(self):
-        pass
+    def write_model_data(self, model_name, list_str, attr_list=None, worker_name=None):
+        worker_name = self._revalidate_worker(worker_name)
+        worker = self.meta.data_workers[worker_name]
+        header = worker.get_model_header(model_name)
+        load_type = header[mf.OPTIONS_KEY][mf.OPTION_LOAD_KEY]
+        if load_type == mf.REPLACE_MODE:
+            worker.truncate_model_data(model_name)
+            brutal = True
+        else:
+            brutal = False
+        if isinstance(list_str, mv.ModelView):
+            list_str = list_str.convert_to_list()
+        worker.write_model_data(model_name, list_str, attr_list, brutal)
 
 
 if __name__ == '__main__':

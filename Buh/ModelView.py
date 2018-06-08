@@ -104,6 +104,25 @@ class ModelView:
         else:
             return self.data
 
+    def convert_to_list(self):
+        if self.view:
+            if not(len(self.hide) == 1 and self.hide[0] == ACTUALITY_FIELD_NAME) and len(self.hide) > 1:
+                raise me.ModelViewException('Can\'t rebuild hidden data')
+            res_list = list()
+            key = self.row_map[self.key - 1]
+            for unit in self.data:
+                unit_dict = self.data[unit]
+                tmp_list = list()
+                for each in self.row_map:
+                    if each not in (key, ACTUALITY_FIELD_NAME):
+                        tmp_list.append(unit_dict[each])
+                    elif each == key:
+                        tmp_list.append(unit)
+                res_list.append(tmp_list)
+            self.data = res_list
+        return self.data
+
+
 
 if __name__ == '__main__':
     data = [['a', 1, 4], ['b', 2, 5]]
@@ -113,3 +132,5 @@ if __name__ == '__main__':
     print(a['a'])
     dt = a.get_data(False)
     print(dt)
+    dt2 = a.convert_to_list()
+    print(dt2)

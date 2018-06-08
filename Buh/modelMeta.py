@@ -217,12 +217,12 @@ def drop_worker(meta_worker : mf.ModelFileWorker, worker_name, worker_path, filt
     if len(data) > 0:
         meta_worker.write_model_data(IDS_MODEL_NAME, data, brutal=True)
     else:
-        meta_worker.trancate_model_data(IDS_MODEL_NAME)
+        meta_worker.truncate_model_data(IDS_MODEL_NAME)
     data = meta_worker.read_model_data(WORKERS_MODEL_NAME, filter_=filter)
     if len(data) > 0:
         meta_worker.write_model_data(WORKERS_MODEL_NAME, data, brutal=True)
     else:
-        meta_worker.trancate_model_data(WORKERS_MODEL_NAME)
+        meta_worker.truncate_model_data(WORKERS_MODEL_NAME)
     del data
     oe.extended_remove(worker_path, recursive=True, save_income_path=False)
 
