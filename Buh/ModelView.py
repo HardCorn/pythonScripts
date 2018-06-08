@@ -120,6 +120,7 @@ class ModelView:
                         tmp_list.append(unit)
                 res_list.append(tmp_list)
             self.data = res_list
+            self.view = False
         return self.data
 
 

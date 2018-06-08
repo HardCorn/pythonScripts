@@ -48,7 +48,6 @@ class ModelManager:
         if model_worker not in self.meta.data_workers:
             raise me.ModelManagerException('Create model error', name, 'worker \'{}\' does not exist'.format(model_worker))
         worker = self.meta.data_workers[model_worker]
-        print(model_worker, model_dictionary)
         worker.create_model(**model_dictionary)
         self.meta.add_data_model(model_worker, name, worker.get_model_header(name))
 
@@ -172,7 +171,8 @@ class ModelManager:
             brutal = False
         if isinstance(list_str, mv.ModelView):
             attr_list = list_str.row_map
-            list_str = list_str.convert_to_list()
+            tmp_list = list_str.convert_to_list()
+            list_str = tmp_list.copy()
         worker.write_model_data(model_name, list_str, attr_list, brutal)
 
 
@@ -180,14 +180,17 @@ if __name__ == '__main__':
     # b = ModelManager(r'C:\simple_test\test', True)
     # b.create_models_from_script('test_file_parser.ddl')
     b = ModelManager(r'C:\simple_test\test')
-    # b.add_worker('test_worker')
+    b.add_worker('test_worker5')
     c = mv.ModelView('some_data', [[1,2,4],[1,2,5],[3,5,6]], True, 3, ['num1', 'num2', 'key'])
     b.create_new_template('some_data')
     b.template_add_attr('key', 'int', True)
     b.template_add_attr('num1', 'int')
     b.template_add_attr('num2', 'int')
-    b.template_set_worker('test_worker')
-    # b.create_model_using_template()
-    b.write_model_data('some_data', c, worker_name='test_worker')
-    d = b.read_model_data('some_data', worker_name='test_worker')
+    b.template_set_worker('test_worker5')
+    b.template_set_load_mode(mf.APPEND_MODE)
+    b.create_model_using_template()
+    b.write_model_data('some_data', c, worker_name='test_worker5')
+    b.write_model_data('some_data', c, worker_name='test_worker5')
+    print(c.data)
+    d = b.read_model_data('some_data', worker_name='test_worker5', build_view_flg=False)
     print(d.data, d.row_map)
