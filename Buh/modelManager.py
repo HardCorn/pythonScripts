@@ -48,6 +48,7 @@ class ModelManager:
         if model_worker not in self.meta.data_workers:
             raise me.ModelManagerException('Create model error', name, 'worker \'{}\' does not exist'.format(model_worker))
         worker = self.meta.data_workers[model_worker]
+        print(model_worker, model_dictionary)
         worker.create_model(**model_dictionary)
         self.meta.add_data_model(model_worker, name, worker.get_model_header(name))
 
@@ -104,6 +105,10 @@ class ModelManager:
         self._check_template_exist('Set loading mode to template Error')
         self.template.set_load_mode(load_mode)
 
+    def template_set_worker(self, worker_name):
+        self._check_template_exist('Set template worker Error')
+        self.template.worker = worker_name
+
     def clear_template(self):
         self.template = None
 
@@ -134,8 +139,10 @@ class ModelManager:
             partition_filter = '1=1'
         if not data_filter:
             data_filter = '1=1'
-        part_list = worker.get_part_list(model_name, self.meta.filter.set_clause(partition_filter))
-        data = worker.read_model_data(name=model_name, partitions_=part_list, filter_=self.meta.filter.set_clause(data_filter),
+        self.meta.filter.set_clause(partition_filter)
+        part_list = worker.get_parts_list(model_name, self.meta.filter)
+        self.meta.filter.set_clause(data_filter)
+        data = worker.read_model_data(name=model_name, partitions_=part_list, filter_=self.meta.filter,
                                       selected=selected_attrs)
         if build_view_flg is None:
             build_view = self.meta.config[mm.DEFAULT_VIEW_TYPE_NAME]
@@ -149,7 +156,7 @@ class ModelManager:
             ), 'incorrect value for build_view_flg: boolean value required, but {} found'.format(
                 build_view_flg
             ))
-        view = mv.ModelView(model_name, data, build_view_flg, worker.get_model_key(model_name), worker._get_row_map(model_name),
+        view = mv.ModelView(model_name, data, build_view_flg, worker.get_model_key(model_name), worker.get_row_map(model_name),
                             self.meta.get_model_hide_list(worker_name, model_name))
         return view
 
@@ -164,11 +171,23 @@ class ModelManager:
         else:
             brutal = False
         if isinstance(list_str, mv.ModelView):
+            attr_list = list_str.row_map
             list_str = list_str.convert_to_list()
         worker.write_model_data(model_name, list_str, attr_list, brutal)
 
 
 if __name__ == '__main__':
-    b = ModelManager(r'C:\simple_test\test', True)
-    b.create_models_from_script('test_file_parser.ddl')
-
+    # b = ModelManager(r'C:\simple_test\test', True)
+    # b.create_models_from_script('test_file_parser.ddl')
+    b = ModelManager(r'C:\simple_test\test')
+    # b.add_worker('test_worker')
+    c = mv.ModelView('some_data', [[1,2,4],[1,2,5],[3,5,6]], True, 3, ['num1', 'num2', 'key'])
+    b.create_new_template('some_data')
+    b.template_add_attr('key', 'int', True)
+    b.template_add_attr('num1', 'int')
+    b.template_add_attr('num2', 'int')
+    b.template_set_worker('test_worker')
+    # b.create_model_using_template()
+    b.write_model_data('some_data', c, worker_name='test_worker')
+    d = b.read_model_data('some_data', worker_name='test_worker')
+    print(d.data, d.row_map)

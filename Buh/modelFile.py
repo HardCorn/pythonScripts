@@ -543,7 +543,7 @@ class ModelFileWorker:
                 raise er.DataValidationError('Header validation: Correct model loading type not set for the model')
             if type(header[ATTRIBUTE_KEY]) != dict or type(header[PARTITION_FILES_KEY]) != dict\
                     or type(header[PARTITION_ATTRIBUTE_KEY]) != dict or type(header[PK_ATTRIBUTE_KEY]) != int\
-                    or type(header[FILE_DELIMITER_KEY]) != str: # проверяем типы основных ключей заголовка
+                    or not isinstance(header[FILE_DELIMITER_KEY], str): # проверяем типы основных ключей заголовка
                 raise er.DataValidationError('Header validation: One or more critical parameter types are incorrect in header')
             for each in header[ATTRIBUTE_KEY]:  # Проверяем словарь атрибутов
                 if type(each) != int:           # ключ обязательно int
@@ -567,7 +567,7 @@ class ModelFileWorker:
                         or PARTITION_FIELD_FORMAT not in header[PARTITION_ATTRIBUTE_KEY][each]: # ключевые параметры
                     raise er.DataValidationError('Header validation: One or more critical parameters not found in partition dictionary')
             for each in header[PARTITION_FILES_KEY]:    # словарь файлов данных
-                if type(each) != str or type(header[PARTITION_FILES_KEY][each]) != str: # все параметры обязательно строковые
+                if type(each) != str or not isinstance(header[PARTITION_FILES_KEY][each], str): # все параметры обязательно строковые
                     raise er.DataValidationError('Header validation: On or more parameters has incorrect data type in partition files dictionary')
         return header   # возвращаем корректный заголовок
 
@@ -926,6 +926,14 @@ class ModelFileWorker:
         header[PARTITION_FILES_KEY] = dict()
         self._change_header(model_name, header)
 
+    def get_row_map(self, model_name):
+        if model_name not in self.model_meta:
+            self._read_header(model_name)
+        attr_dict = self.model_meta[model_name][ATTRIBUTE_KEY]
+        res = list()
+        for num in range(len(attr_dict)):
+            res.append(attr_dict[num + 1][ATTRIBUTE_NAME_KEY])
+        return res
 
 
 if __name__ == '__main__' and DEBUG:

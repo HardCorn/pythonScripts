@@ -324,10 +324,12 @@ class ModelMeta:
         add_model(self.worker, worker_name, model_name, model_header, self.filter)
 
     def get_model_hide_list(self, worker_name, model_name):
-        clause = ATTR_MODEL_WORKER + ' = \'' + worker_name, + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
-        part_list = self.worker.get_parts_list(MODELS_MODEL_NAME, self.filter.set_clause(clause))
+        clause = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
+        self.filter.set_clause(clause)
+        part_list = self.worker.get_parts_list(MODELS_MODEL_NAME, self.filter)
         clause = ATTR_MODEL_HIDE + ' = ' + str(1)
-        tmp_res = self.worker.read_model_data(MODELS_MODEL_NAME, part_list, filter_=self.filter.set_clause(clause),
+        self.filter.set_clause(clause)
+        tmp_res = self.worker.read_model_data(MODELS_MODEL_NAME, part_list, filter_=self.filter,
                                               selected=[ATTR_MODEL_ATTR_NAME])
         res = list()
         for each in tmp_res:
