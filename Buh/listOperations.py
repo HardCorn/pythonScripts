@@ -216,18 +216,18 @@ def find_list(lst_, start_symb='(', delim_symb=',', end_symb=')', start_=0, retu
         if st is None or en is None:            # если кого-то из них нет - ищем дальше
             continue
         tmp = lst_[st: en + 1]                  # формируем список из исходного - потенциально подходящий по структуре
-        cnt = tmp.count(delim_symb)
-        if lst_[len(lst_) - 2] != delim_symb:   # если после последнего элемента стоит символ разделитель - длины необходимо скорректировать
-            mod_len = len(lst_)
+        cnt = tmp.count(delim_symb) + 1
+        if tmp[len(tmp) - 2] != delim_symb:   # если после последнего элемента стоит символ разделитель - длины необходимо скорректировать
+            mod_len = len(tmp)
             cnt_orig = cnt
         else:
-            mod_len = len(lst_) - 1
+            mod_len = len(tmp) - 1
             cnt_orig = cnt
             cnt -= 1
         if cnt_orig != 0 and len(tmp) != 3:
             if (mod_len - 1) % cnt != 0:        # проверяем что длины элементов фиксированы
                 continue
-            mv = (mod_len - 1) / (cnt + 1)      # считаем шаг (расстояние между соседними символами разделителями)
+            mv = (mod_len - 1) / (cnt)      # считаем шаг (расстояние между соседними символами разделителями)
         else:                                   # если полученный список состоит только из разделителя - не подходит
             continue
         mv = int(mv)

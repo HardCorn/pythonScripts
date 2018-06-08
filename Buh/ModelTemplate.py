@@ -2,6 +2,7 @@ import modelExceptions as me
 import smartSplit as ss
 import json
 import listOperations as lo
+import datetime as dt
 
 
 class ModelTemplate:
@@ -118,25 +119,20 @@ def create_models_from_file(file_path, json_dict_file=False):
     if not json_dict_file:
         class ParserError(me.ModelTemplateException):
             def __init__(self, *args):
-                self.string = 'Create model from file: ' + file_path + ': script parsing error'
+                string = 'Create model from file: ' + file_path + ': invalid script'
+                self.args_ = list()
+                self.args_.append(string)
+                self.args_ += args
                 self.args = args
-
-            def __str__(self):
-                list_ = list()
-                list_.append(self.string)
-                list_ = list_ + self.args
-                return ': '.join(list_)
 
         class InvalidScript(me.ModelTemplateException):
             def __init__(self, *args):
-                self.string = 'Create model from file: ' + file_path + ': invalid script'
+                string = 'Create model from file: ' + file_path + ': invalid script'
+                self.args_ = list()
+                self.args_.append(string)
+                self.args_ += args
                 self.args = args
 
-            def __str__(self):
-                list_ = list()
-                list_.append(self.string)
-                list_ = list_ + self.args
-                return ': '.join(list_)
 
         models = list()
         symbol_list = ['attr', 'name', 'default', 'hide', 'key', 'delimiter', 'loading mode', ',', 'worker', ';',
@@ -145,9 +141,10 @@ def create_models_from_file(file_path, json_dict_file=False):
         row = list()
         repeat = True
         attr_flg = False
-        for each in open(file_path, 'r'):
-            row = row + ss.smart_split(each, symbol_list, delimiter_list)
-        print(row)
+        # for each in open(file_path, 'r'):
+        #     row = row + ss.smart_split(each, symbol_list, delimiter_list)
+        with open(file_path, 'r') as f:
+            row = ss.smart_split(f.read(), symbol_list, delimiter_list)
         length = len(row) - 1
         current = 0
         tmp_model = ModelTemplate('')
@@ -160,7 +157,7 @@ def create_models_from_file(file_path, json_dict_file=False):
             if current > length:
                 repeat = False
                 models.append(tmp_model)
-            elif attr_flg:
+            elif attr_flg and not tuple_flg:
                 if row[current] == ')':
                     attr_flg = False
                     current += 1
@@ -201,9 +198,48 @@ def create_models_from_file(file_path, json_dict_file=False):
                         raise ParserError('attribute definition out of bounds (parsing \'attrs\' statement)',
                                           'current = {0} ({2}), attr_end = {1} ({3})'.format(current, attr_end, row[current], row[attr_end]))
                     tmp_model.add_attr(**attr_dict)
+            elif attr_flg:
+                attr_tuple = row[current]
+                for each in attr_tuple:
+                    curr = 0
+                    attr_dict = {'attr_name': each[curr]}
+                    attr_dict['attr_type'] = each[curr + 1]
+                    curr += 2
+                    while curr < len(each):
+                        if each[curr] == 'hide':
+                            attr_dict['hide'] = True
+                            curr += 1
+                        elif each[curr] == 'partition':
+                            if curr + 1 < len(each) and (
+                                    isinstance(each[curr + 1], ss.QuotedString) or each[curr + 1] is None):
+                                attr_dict['partition'] = each[curr + 1]
+                                curr += 2
+                            else:
+                                raise InvalidScript('attribute definition error', 'partition format not found')
+                        elif each[curr] == 'key':
+                            attr_dict['key'] = True
+                            curr += 1
+                        elif each[curr] == 'default':
+                            if curr + 1 < len(each) and not isinstance(each[curr + 1], ss.Symbol):
+                                attr_dict['default'] = each[curr + 1]
+                                curr += 2
+                            else:
+                                raise InvalidScript(
+                                    'attribute definition error: default value not found after \'default\' keyword')
+                        else:
+                            raise InvalidScript('attribute definition error', 'unknown keyword \'{}\''.format(row[current]))
+                    tmp_model.add_attr(**attr_dict)
+                current += 1
+                attr_tuple = False
+                attr_flg = False
             elif row[current] == 'attrs':
                 if next_word == '(':
                     attr_flg = True
+                    tuple_flg = False
+                    current += 1
+                elif isinstance(next_word, tuple):
+                    attr_flg = True
+                    tuple_flg = True
                     current += 1
                 else:
                     raise ParserError('expect \'(\' after \'attrs\' keyword, but {} found'.format(next_word))
@@ -240,14 +276,13 @@ def create_models_from_file(file_path, json_dict_file=False):
                 for each in row[current + 1]:
                     if not(isinstance(each, tuple) or isinstance(each, list)) or len(each) != 2:
                         raise InvalidScript('incorrect partition attribute option value', 'invalid syntax',
-                                            '\'partition (attr1 fmt1, [attr2 fmt2, ...])\' expected')
+                                            "'partition (attr1 fmt1, [attr2 fmt2, ...])' expected")
                     pt_dict[each[0]] = each[1]
                 current += 2
                 tmp_model.add_partitions(pt_dict)
             elif row[current] == 'default':
                 df_dict = dict()
                 if not (next_keyword - current == 2 or length - current >= 1):
-                    print(row[current], current)
                     raise InvalidScript('incorrect default attribute option value', 'default definition not found!')
                 elif not(isinstance(row[current + 1], tuple)):
                     raise InvalidScript('incorrect default attribute option value', 'invalid syntax',
@@ -311,7 +346,10 @@ if __name__ == '__main__':
     print(res, a.get_worker())
     b = create_models_from_file('test.json', True)
     print(b)
+    curr = dt.datetime.now()
     c = create_models_from_file('test_file_parser.ddl')
+    curr2 = dt.datetime.now()
+    print(curr2 - curr)
     for each in c:
         print(each.compile())
 
