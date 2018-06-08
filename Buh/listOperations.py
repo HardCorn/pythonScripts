@@ -219,10 +219,12 @@ def find_list(lst_, start_symb='(', delim_symb=',', end_symb=')', start_=0, retu
         cnt = tmp.count(delim_symb)
         if lst_[len(lst_) - 2] != delim_symb:   # если после последнего элемента стоит символ разделитель - длины необходимо скорректировать
             mod_len = len(lst_)
+            cnt_orig = cnt
         else:
             mod_len = len(lst_) - 1
+            cnt_orig = cnt
             cnt -= 1
-        if cnt != 0:
+        if cnt_orig != 0 and len(tmp) != 3:
             if (mod_len - 1) % cnt != 0:        # проверяем что длины элементов фиксированы
                 continue
             mv = (mod_len - 1) / (cnt + 1)      # считаем шаг (расстояние между соседними символами разделителями)

@@ -2,8 +2,9 @@ worker Main
 name test_model1
 attrs (
 fld1 int key default 1,
-fld2 str partition None default 'Nothing wrong'
-);
+fld2 str  default 'Nothing wrong'
+)
+partition (fld2 None,);
 worker Main
 name test_model2
 attr key1 int

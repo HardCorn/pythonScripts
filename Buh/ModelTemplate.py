@@ -122,8 +122,10 @@ def create_models_from_file(file_path, json_dict_file=False):
                 self.args = args
 
             def __str__(self):
-                list = [self.string] + self.args
-                return ': '.join(list)
+                list_ = list()
+                list_.append(self.string)
+                list_ = list_ + self.args
+                return ': '.join(list_)
 
         class InvalidScript(me.ModelTemplateException):
             def __init__(self, *args):
@@ -131,8 +133,10 @@ def create_models_from_file(file_path, json_dict_file=False):
                 self.args = args
 
             def __str__(self):
-                list = [self.string] + self.args
-                return ': '.join(list)
+                list_ = list()
+                list_.append(self.string)
+                list_ = list_ + self.args
+                return ': '.join(list_)
 
         models = list()
         symbol_list = ['attr', 'name', 'default', 'hide', 'key', 'delimiter', 'loading mode', ',', 'worker', ';',
@@ -228,27 +232,32 @@ def create_models_from_file(file_path, json_dict_file=False):
                 current += 3
             elif row[current] == 'partition':
                 pt_dict = dict()
-                inner_repeat = True
-                while inner_repeat:
-                    next_keyword = lo.find_obj(row, symbol_list, start_=current + 1, list_obj=True)
-                    if next_keyword - current != 3 or row[next_keyword] != ',':
-                        inner_repeat = False
-                    elif next_keyword - current != 3 and next_keyword != -1:
-                        raise InvalidScript('incorrect partition attribute option value: {}'.format(row[current+1 : next_keyword]))
-                    pt_dict[row[current + 1]] = row[current + 2]
-                    current += 3
+                if not (next_keyword - current == 2 or length - current > 1):
+                    raise InvalidScript('incorrect partition attribute option value', 'partition definition not found!')
+                elif not(isinstance(row[current + 1], tuple)):
+                    raise InvalidScript('incorrect partition attribute option value', 'invalid syntax',
+                                        '\'partition (attr1 fmt1, [attr2 fmt2, ...])\' expected')
+                for each in row[current + 1]:
+                    if not(isinstance(each, tuple) or isinstance(each, list)) or len(each) != 2:
+                        raise InvalidScript('incorrect partition attribute option value', 'invalid syntax',
+                                            '\'partition (attr1 fmt1, [attr2 fmt2, ...])\' expected')
+                    pt_dict[each[0]] = each[1]
+                current += 2
                 tmp_model.add_partitions(pt_dict)
             elif row[current] == 'default':
                 df_dict = dict()
-                inner_repeat = True
-                while inner_repeat:
-                    next_keyword = lo.find_obj(row, symbol_list, start_=current + 1, list_obj=True)
-                    if next_keyword - current != 3 or row[next_keyword] != ',':
-                        inner_repeat = False
-                    elif next_keyword - current != 3 and next_keyword != -1:
-                        raise InvalidScript('incorrect default attribute option value: {}'.format(row[current+1 : next_keyword]))
-                    df_dict[row[current + 1]] = row[current + 2]
-                    current += 3
+                if not (next_keyword - current == 2 or length - current >= 1):
+                    print(row[current], current)
+                    raise InvalidScript('incorrect default attribute option value', 'default definition not found!')
+                elif not(isinstance(row[current + 1], tuple)):
+                    raise InvalidScript('incorrect default attribute option value', 'invalid syntax',
+                                        '\'default (attr1 val1, [attr2 val2, ...])\' expected')
+                for each in row[current + 1]:
+                    if not(isinstance(each, tuple) or isinstance(each, list)) or len(each) != 2:
+                        raise InvalidScript('incorrect default attribute option value', 'invalid syntax',
+                                            '\'default (attr1 val1, [attr2 val2, ...])\' expected')
+                    df_dict[each[0]] = each[1]
+                current += 2
                 tmp_model.add_defaults(df_dict)
             elif row[current] == 'key':
                 if current + 1 <= length:
