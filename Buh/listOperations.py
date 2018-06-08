@@ -73,7 +73,7 @@ def replace_sublist(lst_, start_, end_, obj_, list_obj=False):
     return res
     
 
-def tuple_from_list(lst_, fltr_=None, return_list=False, include_mode=False):
+def tuple_from_list(lst_, fltr_=None, return_list=False, include_mode=False, ln=1):
     """
     Функция фильтрует список по фильтру и преобразует к кортежу (если это необходимо)
     :param lst_: исходный список
@@ -96,6 +96,18 @@ def tuple_from_list(lst_, fltr_=None, return_list=False, include_mode=False):
         for each in lst_:
             if bool(each not in fltr) ^ bool(include_mode):
                 res.append(each)
+    if ln != 1:
+        if len(res) % ln != 0:
+            raise ut.ListOperationError('Incorrect element length ({0}) for list {1}'.format(ln, lst_))
+        res_tmp = list()
+        st = 0
+        while st < len(res):
+            tmp_ls = list()
+            for i in range(ln):
+                tmp_ls.append(res[st + i])
+            res_tmp.append(tmp_ls)
+            st += ln
+        res = res_tmp
     if return_list:
         return res
     else:
@@ -156,36 +168,39 @@ def min_(lst_, low_border=None, high_border=None):
     return mx
     
     
-def _valid_list_struct(lst_, start_symb='(', delim_symb=',', end_symb=')'):
+def _valid_list_struct(lst_, start_symb='(', delim_symb=',', end_symb=')', mv=2):
     """
-    Функция падает если заданный спиок не подходит под формат [символ начала, элемент1, символ разделитель,..., символ окончания]
+    Функция падает если заданный спиок не подходит под формат [символ начала, элемент1, символ разделитель,
+        элемент2, символ разделитель,..., символ окончания] каждый элемент при этом может быть составым (
+        состоять из 1, 2-х и более элементов), но при этом должен иметь фиксированную длину
     :param lst_: исходный символ
     :param start_symb: символ начала списка
     :param delim_symb: символ-разделитель списка
     :param end_symb: символ окончания списка
+    :param mv: разница между индексами соседних символов разделителей
     :return: None - падает если входная структура не валидна
     """
     if find_obj(lst_, end_symb) != len(lst_) - 1:   # проверяем начало списка
         raise ut.ListOperationError('Not valid structure: end-structure symbol found not in the end of struct')
     if find_obj(lst_, start_symb, 1) != -1:         # проверяем окончание списка
         raise ut.ListOperationError('Not valid structure: start-structure symbol found not in the start of struct')
-    st = 2
+    st = mv
     while st < len(lst_) - 1:                       # проверяем что после каждого элемента идет разделитель
         if lst_[st] != delim_symb:
             raise ut.ListOperationError(f'Not valid structure: expected delimiter not found in {st}')
-        st += 2
+        st += mv
 
 
 def find_list(lst_, start_symb='(', delim_symb=',', end_symb=')', start_=0, return_list=False):
     """
-    Функция поиска структуры подходящей под описание списка с разделителем
+    Функция поиска структуры подходящей под описание списка с разделителем (не ищем пустых списков)
     :param lst_: исходный список
     :param start_symb: символ начала структуры
     :param delim_symb: символ-разделитель
     :param end_symb: символ окончания структуры
     :param start_: пока не используется - потенциально начальная позиция просмотра
     :param return_list: флаг возврата списка (по умолчанию это кортеж)
-    :return: возвращает координаты начала-конца потенциального списка или None если такая струткура не найдена
+    :return: возвращает координаты начала-конца потенциального списка и длину элементов или None если такая струткура не найдена
     """
     check_type(lst_)
     if find_obj(lst_, start_symb) == -1 or find_obj(lst_, delim_symb) == -1 \
@@ -201,14 +216,27 @@ def find_list(lst_, start_symb='(', delim_symb=',', end_symb=')', start_=0, retu
         if st is None or en is None:            # если кого-то из них нет - ищем дальше
             continue
         tmp = lst_[st: en + 1]                  # формируем список из исходного - потенциально подходящий по структуре
+        cnt = tmp.count(delim_symb)
+        if lst_[len(lst_) - 2] != delim_symb:   # если после последнего элемента стоит символ разделитель - длины необходимо скорректировать
+            mod_len = len(lst_)
+        else:
+            mod_len = len(lst_) - 1
+            cnt -= 1
+        if cnt != 0:
+            if (mod_len - 1) % cnt != 0:        # проверяем что длины элементов фиксированы
+                continue
+            mv = (mod_len - 1) / (cnt + 1)      # считаем шаг (расстояние между соседними символами разделителями)
+        else:                                   # если полученный список состоит только из разделителя - не подходит
+            continue
+        mv = int(mv)
         try:                                    # проверяем структуру этого списку
-            _valid_list_struct(tmp, start_symb, delim_symb, end_symb)
+            _valid_list_struct(tmp, start_symb, delim_symb, end_symb, mv)
         except ut.ListOperationError:           # не подходит - ищем дальше
             continue
         else:
             if return_list:                     # если подходим - возвращаем координаты
-                return [st, en]
-            return (st, en)
+                return [st, en, mv - 1]
+            return (st, en, mv -1)
     return None
     
 
@@ -226,7 +254,7 @@ def modify_list(lst_, lst_start='(', lst_delim=',', lst_end=')', tuples_mode=Tru
     fnd = find_list(res, lst_start, lst_delim, lst_end) # ищем подходящую структуру
     fltr_list = [lst_start, lst_delim, lst_end]         # получаем список разделителей
     while fnd is not None:
-        tuple_ = tuple_from_list(res[fnd[0]:fnd[1]+1], fltr_list, return_list=not tuples_mode)  # получаем спиок из листа, фильтруя все служебные символы
+        tuple_ = tuple_from_list(res[fnd[0]:fnd[1]+1], fltr_list, return_list=not tuples_mode, ln=fnd[2])  # получаем спиок из листа, фильтруя все служебные символы
         res = replace_sublist(res, fnd[0], fnd[1], tuple_)  # подменяем в результирующем списке под-список на полученную структуру
         fnd = find_list(res, lst_start, lst_delim, lst_end) # ищем следующую подходящую структуру
     return res
