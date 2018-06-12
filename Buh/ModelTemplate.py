@@ -3,6 +3,7 @@ import smartSplit as ss
 import json
 import listOperations as lo
 import datetime as dt
+import modelUtility as mu
 
 
 class ModelTemplate:
@@ -12,8 +13,9 @@ class ModelTemplate:
 
     TNone = TemplNone()
 
-    def __init__(self, name, attrs=None, partition=None, key=None, delim=None, defaults=None,
+    def __init__(self, name, log_path, attrs=None, partition=None, key=None, delim=None, defaults=None,
                  worker=None, hide=None, load_mode=None):
+        self.logger = mu.Logger('ModelTemplate', log_path)
         self.name = name
         self.attrs = attrs
         self.partition = partition

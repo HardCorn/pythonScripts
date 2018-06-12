@@ -1,5 +1,30 @@
 import expressions as exp
 import modelExceptions as me
+import dates as dt
+from functools import wraps
+import os
+
+
+def get_meta_path(home_dir):
+    return os.path.join(home_dir, 'Metadata') + os.path.sep
+
+
+def get_data_path(home_dir):
+    return os.path.join(home_dir, 'Data') + os.path.sep
+
+
+def get_worker_path(home_dir, worker_name):
+    data_path = get_data_path(home_dir)
+    return os.path.join(data_path, worker_name) + os.path.sep
+
+
+def get_log_dir(home_dir):
+    return os.path.join(home_dir, 'Log')
+
+
+def get_log_path(home_dir):
+    log_path = get_log_dir(home_dir)
+    return os.path.join(log_path, 'main_log.log')
 
 
 def build_simple_view(list_str, key):
@@ -12,6 +37,49 @@ def build_simple_view(list_str, key):
     for each in list_str:
         res_dict[each[fkey]] = each[fval]
     return res_dict
+
+
+class Logger:
+    def __init__(self, name, log_path):
+        self.name = name
+        self.log_file = log_path
+        with open(self.log_file, 'a'):
+            pass                    # просто для проверки валидности пути
+
+    def log(self, *msg):
+        if len(msg) < 1:
+            raise me.UtilityException('Logger Exception', 'there are no log messages to write')
+        else:
+            msg = list(msg)
+            msg[len(msg) - 1] = msg[len(msg) - 1] + '\n'
+        write_list = [dt.datetime_to_str(dt.dt.datetime.now()), self.name] + msg
+        with open(self.log_file, 'a') as f:
+            f.write(': '.join(write_list))
+
+class Decor:
+    @staticmethod
+    def _logger(name):
+        def decorator(function_):
+            @wraps(function_)
+            def wrapper(*args, **kwargs):
+                args[0].logger.log(name, 'start')
+                res = function_(*args, **kwargs)
+                args[0].logger.log(name, 'ended successfully')
+                return res
+            return wrapper
+        return decorator
+
+
+def logger(logger_, name='type'):
+    def decorator(function_):
+        @wraps(function_)
+        def wrapper(*args, **kwargs):
+            logger_(name, 'start', 'dd')
+            res = function_(*args, **kwargs)
+            logger_(name, 'ended successfully')
+            return res
+        return wrapper
+    return decorator
 
 
 class Filter:
@@ -73,3 +141,17 @@ if __name__ == '__main__':
     b = a.resolve(['2018-04-01'])
     print(n)
     print(b)
+    class logs:
+
+        def log(self, *msg):
+            print(msg)
+    log = logs()
+
+    @logger(log.log, 'some_string')
+    def func(value):
+        print('nothing matters', value)
+        return value + 1
+
+    i = func(10)
+    print(i)
+

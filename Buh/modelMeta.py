@@ -5,6 +5,8 @@ import modelUtility as mu
 import osExtension as oe
 import modelExceptions as me
 import config
+from modelUtility import (get_log_path, get_log_dir, get_worker_path, get_meta_path, get_data_path)
+import time as tm
 
 
 # Все модели создаем в режиме REPLACE, чтобы не добавлять лишних атрибутов
@@ -141,23 +143,33 @@ DEFAULT_CONFIG_DICT = {
 #     return os.path.exists(path)
 
 
-def get_meta_path(home_dir):
-    return os.path.join(home_dir, 'Metadata') + os.path.sep
+# def get_meta_path(home_dir):
+#     return os.path.join(home_dir, 'Metadata') + os.path.sep
 
 
-def get_data_path(home_dir):
-    return os.path.join(home_dir, 'Data') + os.path.sep
+# def get_data_path(home_dir):
+#     return os.path.join(home_dir, 'Data') + os.path.sep
 
 
-def get_worker_path(home_dir, worker_name):
-    data_path = get_data_path(home_dir)
-    return os.path.join(data_path, worker_name) + os.path.sep
+# def get_worker_path(home_dir, worker_name):
+#     data_path = get_data_path(home_dir)
+#     return os.path.join(data_path, worker_name) + os.path.sep
 
+
+# def get_log_dir(home_dir):
+#     return os.path.join(home_dir, 'Log')
+
+
+# def get_log_path(home_dir):
+#     log_path = get_log_dir(home_dir)
+#     return os.path.join(log_path, 'main_log.log')
 
 def set_default_config(config : config.Config):
+    config.auto_save = False
     for each in DEFAULT_CONFIG_DICT:
         config[each] = DEFAULT_CONFIG_DICT[each]
     config.save()
+    config.auto_save = True
     # res = list()
     # for each in DEFAULT_CONFIG_DICT:
     #     res.append([each, DEFAULT_CONFIG_DICT[each]])
@@ -183,11 +195,15 @@ def create_meta(home_dir=None):
     home_dir = home_dir or oe.get_self_dir()
     meta_dir = get_meta_path(home_dir)
     data_dir = get_data_path(home_dir)
+    log_dir = get_log_dir(home_dir)
     main_base_dir = data_dir + MAIN_BASE_NAME + '\\'
     oe.revalidate_path(home_dir, True)
+    oe.revalidate_path(log_dir)
     oe.revalidate_path(meta_dir)
     oe.revalidate_path(data_dir)
     oe.revalidate_path(main_base_dir)
+    inner_logger = mu.Logger('MetaDataCreator', get_log_path(home_dir))
+    inner_logger.log('create metadata', 'start')
     worker = mf.ModelFileWorker(meta_dir)
     worker.create_model(**MODEL_WORKERS_DICT)
     worker.insert_simple_data(WORKERS_MODEL_NAME, [MAIN_BASE_NAME, main_base_dir],
@@ -195,6 +211,7 @@ def create_meta(home_dir=None):
     worker.create_model(**MODEL_ID_GEN_DICT)
     worker.create_model(**MODEL_MODELS_DICT)
     worker.create_model(**MODEL_CONFIG_DICT)
+    inner_logger.log('create metadata', 'ended successfully')
     # set_default_config(worker)
     return worker
 
@@ -278,6 +295,7 @@ class ModelMeta:
         self.model_path = home_dir
         self.filter = mu.Filter()
         self.worker = start_meta(home_dir, brutal)
+        self.logger = mu.Logger('ModelMeta', get_log_path(home_dir))
         try:
             data_workers = self.worker.read_model_data(WORKERS_MODEL_NAME)
             for each in data_workers:
@@ -288,17 +306,25 @@ class ModelMeta:
             if len(self.config) == 0:
                 set_default_config(self.config)
         except:
+            self.logger.log('metadata initialization', 'Error', 'can\'t read model metadata')
             raise me.ModelMetaException('Error metadata initializing', 'Can\'t read model metadata, it\'s broken!')
 
+    log_func = mu.Decor._logger
+
+    @log_func('add data worker')
     def add_data_worker(self, worker_name):
+        self.logger.log('DEBUG', 'worker name: {}'.format(worker_name))
         path = get_worker_path(self.model_path, worker_name)
         if os.path.exists(path):
+            self.logger.log('add data worker', 'Error', 'worker already exist')
             raise me.ModelMetaException('Add data worker Error', 'Worker called {} already exist!'.format(worker_name))
         oe.revalidate_path(path)
         self.data_workers[worker_name] = add_worker(self.worker, self.model_path, worker_name)
         return self.data_workers[worker_name]
 
+    @log_func('drop worker from metadata')
     def drop_data_worker(self, worker_name):
+        self.logger.log('DEBUG', 'worker name: {}'.format(worker_name))
         path = get_worker_path(self.model_path, worker_name)
         if not (os.path.exists(path)):
             raise me.ModelMetaException('Drop data worker Error', 'Worker called {} does not exist!'.format(worker_name))
@@ -307,23 +333,30 @@ class ModelMeta:
         drop_worker(self.worker, worker_name, path, self.filter)
         del self.data_workers[worker_name]
 
-
+    @log_func('add model to metadata')
     def add_data_model(self, worker_name, model_name, model_header):
+        self.logger.log('DEBUG', 'worker name: {0}; model name: {1}'.format(worker_name, model_name))
         add_model(self.worker, worker_name, model_name, model_header, self.filter)
 
+    @log_func('reset model config to default')
     def reset_config_to_default(self):
         set_default_config(self.config)
 
+    @log_func('drop model from metadata')
     def drop_data_model(self, worker_name, model_name):
         clause = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
         part_list = self.worker.get_parts_list(MODELS_MODEL_NAME, self.filter.set_clause(clause))
         self.worker.drop_partition(MODELS_MODEL_NAME, part_list)
 
+    @log_func('modify model')
     def modify_data_model(self, worker_name, model_name, model_header):
+        self.logger.log('DEBUG', 'worker name: {0}; model name: {1}'.format(worker_name, model_name))
         self.drop_data_model(worker_name, model_name)
         add_model(self.worker, worker_name, model_name, model_header, self.filter)
 
+    @log_func('get hidden model attribute list')
     def get_model_hide_list(self, worker_name, model_name):
+        self.logger.log('DEBUG', 'worker name: {0}; model name: {1}'.format(worker_name, model_name))
         clause = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
         self.filter.set_clause(clause)
         part_list = self.worker.get_parts_list(MODELS_MODEL_NAME, self.filter)
