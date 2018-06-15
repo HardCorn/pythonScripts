@@ -67,8 +67,10 @@ class Logger:
     def note(self, name, msg):
         self.log(name, 'Note', msg)
 
-    def error(self, name, msg):
+    def error(self, name, msg, exception=None):
         self.log(name, 'Error', msg)
+        if issubclass(exception, BaseException):
+            raise exception(name, msg)
 
 
 class Decor:

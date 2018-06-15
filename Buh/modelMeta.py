@@ -306,30 +306,32 @@ class ModelMeta:
             if len(self.config) == 0:
                 set_default_config(self.config)
         except:
-            self.logger.log('metadata initialization', 'Error', 'can\'t read model metadata')
+            self.logger.error('metadata initialization', 'cat\'t read model metadata')
             raise me.ModelMetaException('Error metadata initializing', 'Can\'t read model metadata, it\'s broken!')
 
     log_func = mu.Decor._logger
 
     @log_func('add data worker')
     def add_data_worker(self, worker_name):
-        self.logger.log('DEBUG', 'worker name: {}'.format(worker_name))
+        self.logger.debug('add data worker', worker_name=worker_name)
         path = get_worker_path(self.model_path, worker_name)
         if os.path.exists(path):
-            self.logger.log('add data worker', 'Error', 'worker already exist')
-            raise me.ModelMetaException('Add data worker Error', 'Worker called {} already exist!'.format(worker_name))
+            self.logger.error('add data worker', 'worker {} already exist'.format(worker_name), me.ModelMetaException)
+            # raise me.ModelMetaException('Add data worker Error', 'Worker called {} already exist!'.format(worker_name))
         oe.revalidate_path(path)
         self.data_workers[worker_name] = add_worker(self.worker, self.model_path, worker_name)
         return self.data_workers[worker_name]
 
     @log_func('drop worker from metadata')
     def drop_data_worker(self, worker_name):
-        self.logger.log('DEBUG', 'worker name: {}'.format(worker_name))
+        self.logger.debug('drop worker from metadata', worker_name=worker_name)
         path = get_worker_path(self.model_path, worker_name)
         if not (os.path.exists(path)):
-            raise me.ModelMetaException('Drop data worker Error', 'Worker called {} does not exist!'.format(worker_name))
+            self.logger.error('drop data worker', 'worker {} does not exist'.format(worker_name), me.ModelMetaException)
+            # raise me.ModelMetaException('Drop data worker Error', 'Worker called {} does not exist!'.format(worker_name))
         if worker_name not in self.data_workers:
-            raise me.ModelMetaException('Drop data worker Error', 'Worker called {} not found in model metadata!'.format(worker_name))
+            self.logger.error('drop data worker', 'worker called {} not found in model metadata'.format(worker_name), me.ModelMetaException)
+            # raise me.ModelMetaException('Drop data worker Error', 'Worker called {} not found in model metadata!'.format(worker_name))
         drop_worker(self.worker, worker_name, path, self.filter)
         del self.data_workers[worker_name]
 
