@@ -337,7 +337,7 @@ class ModelMeta:
 
     @log_func('add model to metadata')
     def add_data_model(self, worker_name, model_name, model_header):
-        self.logger.log('DEBUG', 'worker name: {0}; model name: {1}'.format(worker_name, model_name))
+        self.logger.debug('add model to metadata', worker_name=worker_name, model_name=model_name)
         add_model(self.worker, worker_name, model_name, model_header, self.filter)
 
     @log_func('reset model config to default')
@@ -346,19 +346,20 @@ class ModelMeta:
 
     @log_func('drop model from metadata')
     def drop_data_model(self, worker_name, model_name):
+        self.logger.debug('drop model from metadata', worker_name=worker_name, model_name=model_name)
         clause = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
         part_list = self.worker.get_parts_list(MODELS_MODEL_NAME, self.filter.set_clause(clause))
         self.worker.drop_partition(MODELS_MODEL_NAME, part_list)
 
     @log_func('modify model')
     def modify_data_model(self, worker_name, model_name, model_header):
-        self.logger.log('DEBUG', 'worker name: {0}; model name: {1}'.format(worker_name, model_name))
+        self.logger.debug('modify model', worker_name=worker_name, model_name=model_name)
         self.drop_data_model(worker_name, model_name)
         add_model(self.worker, worker_name, model_name, model_header, self.filter)
 
     @log_func('get hidden model attribute list')
     def get_model_hide_list(self, worker_name, model_name):
-        self.logger.log('DEBUG', 'worker name: {0}; model name: {1}'.format(worker_name, model_name))
+        self.logger.debug('get model hidden attribute list', worker_name=worker_name, model_name=model_name)
         clause = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\' and ' + ATTR_MODEL_MODEL + ' = \'' + model_name + '\''
         self.filter.set_clause(clause)
         part_list = self.worker.get_parts_list(MODELS_MODEL_NAME, self.filter)
