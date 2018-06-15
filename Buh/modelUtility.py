@@ -56,6 +56,14 @@ class Logger:
         with open(self.log_file, 'a') as f:
             f.write(': '.join(write_list))
 
+    def debug(self, name, **kwargs):
+        tmp_str = name + ': DEBUG: '
+        if len(kwargs) < 1:
+            raise me.UtilityException('Logger Exception', 'there are no attributes for logging')
+        for each in kwargs:
+            tmp_str += str(each) + ': ' + str(kwargs[each]) + '; '
+        self.log(tmp_str)
+
 class Decor:
     @staticmethod
     def _logger(name):
@@ -133,7 +141,7 @@ class Filter:
 
 
 if __name__ == '__main__':
-    str = "1 = 0 and 1 not in '' or ('2018-01-01' < '2018-01-02') and self_name is none ('22', '33', '44')"
+    str_ = "1 = 0 and 1 not in '' or ('2018-01-01' < '2018-01-02') and self_name is none ('22', '33', '44')"
     a = Filter()
     a.set_clause("date_field = '2018-04-01'")
     n = a.try_resolve()
