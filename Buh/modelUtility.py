@@ -64,6 +64,13 @@ class Logger:
             tmp_str += str(each) + ': ' + str(kwargs[each]) + '; '
         self.log(tmp_str)
 
+    def note(self, name, msg):
+        self.log(name, 'Note', msg)
+
+    def error(self, name, msg):
+        self.log(name, 'Error', msg)
+
+
 class Decor:
     @staticmethod
     def _logger(name):

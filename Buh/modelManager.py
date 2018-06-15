@@ -25,15 +25,16 @@ class ModelManager:
 
     @log_func('add new worker')
     def add_worker(self, worker_name):
+        self.logger.debug('add new worker', worker_name=worker_name)
         self.meta.add_data_worker(worker_name)
 
     @log_func('drop worker')
     def drop_worker(self, worker_name):
+        self.logger.debug('drop worker', worker_name=worker_name)
         if worker_name not in self.meta.data_workers:
-            self.logger.log('drop worker', worker_name, 'error', 'worker does not exist')
+            self.logger.error('drop worker', 'worker does not exist')
             raise me.ModelManagerException('Drop worker error', worker_name, 'worker does not exist!')
         path = mm.get_worker_path(self.model_directory, worker_name)
-        self.logger.log('drop worker', worker_name, 'drop physical files')
         oe.extended_remove(path, True)
         self.meta.drop_data_worker(worker_name)
 
@@ -46,7 +47,7 @@ class ModelManager:
 
     def _revalidate_worker(self, worker_name):
         if worker_name is None:
-            self.logger.log('revalidation worker', 'Note', 'worker does not assigned, default worker will be compiled')
+            self.logger.note('worker validation', 'worker not defined, default worker will be used')
             worker_name = self.meta.config[mm.DEFAULT_WORKER_NAME]
         return worker_name
 
@@ -54,14 +55,14 @@ class ModelManager:
     def create_model(self, model_dictionary, model_worker=None):
         model_worker = self._revalidate_worker(model_worker)
         if 'delim' not in model_dictionary:
-            self.logger.log('create new model', 'Note', 'delimiter does not assigned, default delimiter will be compiled')
+            self.logger.note('create new model', 'delimiter not defined, default delimiter will be used')
             model_dictionary['delim'] = self.meta.config[mm.DEFAULT_DELIMITER_NAME]
         if 'load_mode' not in model_dictionary:
-            self.logger.log('create new model', 'Note', 'loading mode doesnot assigned, default loading mode will be compiled')
+            self.logger.note('create new model', 'loading mode not defined, default loading mode will be used')
             model_dictionary['load_mode'] = self.meta.config[mm.DEFAULT_MODEL_LOAD_MODE]
         name = model_dictionary['name']
         if model_worker not in self.meta.data_workers:
-            self.logger.log('create new model', 'Error', 'worker {} does not exist'.format(model_worker))
+            self.logger.error('create new model', 'worker {} does not exist'.format(model_worker))
             raise me.ModelManagerException('Create model error', name, 'worker \'{}\' does not exist'.format(model_worker))
         worker = self.meta.data_workers[model_worker]
         worker.create_model(**model_dictionary)
@@ -69,6 +70,7 @@ class ModelManager:
 
     @log_func('create model from json')
     def create_model_from_json(self, file_path):
+        self.logger.debug('create model from json', file_path=file_path)
         dic = mt.create_models_from_file(file_path, True)
         if 'worker' in dic:
             worker = dic['worker']
@@ -79,6 +81,7 @@ class ModelManager:
 
     @log_func('create models from script')
     def create_models_from_script(self, file_path):
+        self.logger.debug('create models from script', file_path=file_path)
         model_templates = mt.create_models_from_file(file_path)
         for each in model_templates:
             self.create_model(each.compile(), each.get_worker())
@@ -87,14 +90,14 @@ class ModelManager:
     def create_new_template(self, model_name, model_attrs=None, model_partition=None, model_key=None, model_delimiter=None,
                          attr_defaults=None, model_worker=None, hide_attrs=None, load_mode=None):
         if self.template is not None:
-            self.logger.log('create new template', 'Error', 'current template does not empty!')
+            self.logger.error('create new template', 'current template doesn\'t empty')
             raise me.ModelManagerException('Create new template', model_name, 'Template is not empty! ({})'.format(self.template))
         self.template = mt.ModelTemplate(model_name, self.logger.log_file, model_attrs, model_partition, model_key, model_delimiter,
                                          attr_defaults, model_worker, hide_attrs, load_mode)
 
     def _check_template_exist(self, err_msg):
         if self.template is None:
-            self.logger.log('template validation', 'Error', 'current template is empty')
+            self.logger.error('template validation', 'current template is empty')
             raise me.ModelManagerException(err_msg, 'there are no template to modify')
 
     @log_func('add attribute to template')
@@ -151,7 +154,8 @@ class ModelManager:
 
     @log_func('modify model partitioning')
     def modify_model_partition(self, model_name, modif_type, attr_name, attr_fmt=None, worker_name=None):
-        self.logger.log('DEBUG', 'model name: {0}; modification type: {1}; attribute name: {2}'.format(model_name, modif_type, attr_name))
+        self.logger.debug('modify model partitioning', worker_name=worker_name, model_name=model_name,modif_type=modif_type,
+                          attr_name=attr_name)
         worker_name = self._revalidate_worker(worker_name)
         worker = self.meta.data_workers[worker_name]
         worker.modify_partition(model_name, modif_type, attr_name, attr_fmt)
@@ -159,7 +163,8 @@ class ModelManager:
 
     @log_func('modify model attribute')
     def modify_model_attribute(self, model_name, modif_type, attr_name, worker_name=None, **kwargs):
-        self.logger.log('DEBUG', 'model name: {0}; modification type: {1}; attribute name: {2}'.format(model_name, modif_type, attr_name))
+        self.logger.debug('modeify model attribute', worker_name=worker_name, model_name=model_name, modif_type=modif_type,
+                          attr_name=attr_name)
         worker_name = self._revalidate_worker(worker_name)
         worker = self.meta.data_workers[worker_name]
         worker.modify_attribute(model_name, modif_type, attr_name, **kwargs)
@@ -168,7 +173,8 @@ class ModelManager:
     @log_func('reading model data')
     def read_model_data(self, model_name, partition_filter='', data_filter='', selected_attrs=None, worker_name=None,
                         build_view_flg=None):
-        self.logger.log('DEBUG', 'model name: {0}; partition filter: {1}; data_filter{2}'.format(model_name, partition_filter, data_filter))
+        self.logger.debug('reading model data', model_name=model_name, partition_filter=partition_filter, data_filter=data_filter,
+                          worker_name=worker_name, selected_attrs=selected_attrs, build_view_flg=build_view_flg)
         worker_name = self._revalidate_worker(worker_name)
         worker = self.meta.data_workers[worker_name]
         if not partition_filter:
@@ -191,7 +197,7 @@ class ModelManager:
             else:
                 build_view_flg = False
         if not isinstance(build_view_flg, bool):
-            self.logger.log('reading model data', 'Error', 'build_view_flg: bool required, but {} found'.format(build_view_flg))
+            self.logger.error('reading model data', 'build_view_flg: bool required, but {} found'.format(build_view_flg))
             raise me.ModelManagerException('Read model data Error', model_name, 'partition_filter \'{0}\', data_filter \'{1}\''.format(
                 partition_filter, data_filter
             ), 'incorrect value for build_view_flg: boolean value required, but {} found'.format(
@@ -203,20 +209,20 @@ class ModelManager:
 
     @log_func('writing model data')
     def write_model_data(self, model_name, list_str, attr_list=None, worker_name=None):
-        self.logger.log('DEBUG', 'worker name: {0}; model name: {1}; attribute list: {2}'.format(worker_name, model_name, attr_list))
+        self.logger.debug('writing model data', worker_name=worker_name, model_name=model_name, attr_list=attr_list)
         worker_name = self._revalidate_worker(worker_name)
         worker = self.meta.data_workers[worker_name]
         header = worker.get_model_header(model_name)
         load_type = header[mf.OPTIONS_KEY][mf.OPTION_LOAD_KEY]
         if load_type == mf.REPLACE_MODE:
-            self.logger.log('writing model data', 'Note', model_name, 'Fully reloading data')
+            self.logger.note('writing model data', 'Full data reloading mode')
             worker.truncate_model_data(model_name)
             brutal = True
         else:
-            self.logger.log('writing model data', 'Note', model_name, 'Append data')
+            self.logger.note('writing model data', 'Append data loading mode')
             brutal = False
         if isinstance(list_str, mv.ModelView):
-            self.logger.log('writing model data', 'Note', 'source is ModelView')
+            self.logger.note('writing model data', 'Data source is ModelView object')
             attr_list = list_str.row_map
             tmp_list = list_str.convert_to_list()
             list_str = tmp_list.copy()
