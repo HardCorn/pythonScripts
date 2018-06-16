@@ -30,6 +30,7 @@ class BaseSingletonTextFile(ut.SingleTon):
         n = self.__class__.decr_init_counter()
         if n < 1:
             self.file.write(self.buffer)
+            self.file.write('\n' + '*'*30 + 'log closed' + '*' * 30 + '\n\n')
             self.file.close()
             self.buffer = str()
 

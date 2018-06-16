@@ -81,6 +81,7 @@ class Logger:
     def error(self, name, msg, exception=None):
         self.log(name, 'Error', msg)
         self.logger.close()
+        print('closed')
         if issubclass(exception, BaseException):
             raise exception(name, msg)
 
