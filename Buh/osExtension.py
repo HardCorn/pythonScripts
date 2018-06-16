@@ -3,7 +3,7 @@ import functools as ft
 import datetime as dt
 
 
-def no_fall(err_type=IOError, log_path='C:\\simple_test\\log.txt'):
+def no_fall(err_type=IOError, log_path='D:\\simple_test\\log.txt'):
     def decorator(func):
         @ft.wraps(func)
         def wrapper(*args, **kwargs):
@@ -11,13 +11,14 @@ def no_fall(err_type=IOError, log_path='C:\\simple_test\\log.txt'):
                 func(*args, **kwargs)
             except err_type:
                 # print('PROCESS FALLS: ', err_type.__name__)
+                print(*args, **kwargs)
                 with open(log_path, 'a') as f:
                     f.write(str(dt.datetime.now()) + ': {}: PROCESS FALLS: '.format(func.__name__) + str(err_type.__name__) + '\n')
         return wrapper
     return decorator
 
 
-def logger(log_path='C:\\simple_test\\log.txt', word=''):
+def logger(log_path='D:\\simple_test\\log.txt', word=''):
     def decorator(func):
         @ft.wraps(func)
         def wrapper(*args, **kwargs):
@@ -98,8 +99,8 @@ def extended_remove(path, recursive=False, ignore_errors=True, save_income_path=
             obj = os.path.join(path, each)
             if os.path.isdir(obj):
                 dirs.append(obj)
-            elif save_extension is None or not (isinstance(save_extension, list) or isinstance(save_extension, tuple)
-                                                or isinstance(save_extension, str)):
+            elif not isinstance(save_extension, list) and not isinstance(save_extension, tuple)\
+                                                and not isinstance(save_extension, str):
                 files.append(obj)
             else:
                 ext = obj.rfind('.')
@@ -111,7 +112,7 @@ def extended_remove(path, recursive=False, ignore_errors=True, save_income_path=
                 else:
                     files.append(obj)
         for each in dirs:
-            extended_remove(each, recursive, ignore_errors, False, _seq=_seq + 1)
+            extended_remove(each, recursive, ignore_errors, False, save_extension=save_extension, _seq=_seq + 1)
         for each in files:
             remove(each, ignore_errors)
         if not save_income_path or _seq != 0:

@@ -60,7 +60,7 @@ class ModelView:
             actuality = row_map.index(ACTUALITY_FIELD_NAME)
         else:
             actuality = -1
-        self.logger.debug('build_view', name=self.name, key=key, row_map=row_map, hide=hide)
+        self.logger.debug('build_view', _name=self.name, key=key, row_map=row_map, hide=hide)
         for each in self.data:
             inner_dict = dict()
             if len(row_map) != len(each):
@@ -86,7 +86,7 @@ class ModelView:
 
     @log_func()
     def __getitem__(self, item):
-        self.logger.debug('__getitem__', name=self.name, view=self.view, item=item)
+        self.logger.debug('__getitem__', _name=self.name, view=self.view, item=item)
         if not self.view:
             if not isinstance(item, int):
                 self.logger.error('__getitem__', 'Current instance contains simple data, not a view!' +
@@ -131,7 +131,7 @@ class ModelView:
 
     @log_func()
     def convert_to_list(self):
-        self.logger.debug('convert_to_list', name=self.name, view=self.view, hide=self.hide, row_map=self.row_map)
+        self.logger.debug('convert_to_list', _name=self.name, view=self.view, hide=self.hide, row_map=self.row_map)
         if self.view:
             if not(len(self.hide) == 1 and self.hide[0] == ACTUALITY_FIELD_NAME) and len(self.hide) > 1:
                 self.logger.error('convert_to_list', 'Can\'t rebuild hidden data', me.ModelViewException)

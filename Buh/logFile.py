@@ -12,6 +12,8 @@ class BaseSingletonTextFile(ut.SingleTon):
     #     return self.file.read()
 
     def write(self, string, mode='a'):
+        if self.is_closed():
+            raise ut.BaseError('File closed!', self.buffer, string)
         if mode == 'w':
             self.file.truncate(0)
             self.file.write(string)
@@ -29,6 +31,10 @@ class BaseSingletonTextFile(ut.SingleTon):
         if n < 1:
             self.file.write(self.buffer)
             self.file.close()
+            self.buffer = str()
+
+    def is_closed(self):
+        return self.file.closed
 
     def __enter__(self):
         return self
@@ -38,9 +44,12 @@ class BaseSingletonTextFile(ut.SingleTon):
 
 
 def get_log_file(log_class, file_path, max_buff=10000):
-    with log_class(file_path, max_buff) as f:
-        while True:
-            yield f
+    f = log_class(file_path, max_buff)
+    while True:
+        yield f
+    # with log_class(file_path, max_buff) as f:
+    #     while _val:
+    #         yield f
 
 
 if __name__ == '__main__':

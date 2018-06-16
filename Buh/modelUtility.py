@@ -80,6 +80,7 @@ class Logger:
 
     def error(self, name, msg, exception=None):
         self.log(name, 'Error', msg)
+        self.logger.close()
         if issubclass(exception, BaseException):
             raise exception(name, msg)
 
@@ -96,6 +97,15 @@ class Decor:
                 return res
             return wrapper
         return decorator
+
+    @staticmethod
+    def _check_closed(function_):
+        @wraps(function_)
+        def wrapped(*args, **kwargs):
+            if args[0].closed:
+                raise me.ModelManagerException('_check_closed decorator', 'operation on closed model!')
+            return function_(*args, **kwargs)
+        return wrapped
 
 
 def logger(logger_, name=None):
