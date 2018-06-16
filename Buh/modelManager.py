@@ -5,6 +5,7 @@ import modelMeta as mm
 import modelFile as mf
 import ModelTemplate as mt
 import ModelView as mv
+import logFile as lf
 from functools import wraps
 
 
@@ -17,8 +18,11 @@ class ModelManager:
         if recreate_flg:
             self._drop_all()
         oe.revalidate_path(model_directory, True)
-        self.meta = mm.ModelMeta(model_directory)
-        self.logger = mu.Logger('ModelManager', mm.get_log_path(model_directory))
+        log_file_path = mu.get_log_path(model_directory)
+        oe.revalidate_path(log_file_path)
+        self.log_generator = lf.get_log_file(mu.MainLog, log_file_path)
+        self.meta = mm.ModelMeta(model_directory, self.log_generator)
+        self.logger = mu.Logger('ModelManager', self.log_generator)
         self.template = None
 
     log_func = mu.Decor._logger
@@ -39,7 +43,7 @@ class ModelManager:
         self.meta.drop_data_worker(worker_name)
 
     def _drop_all(self):
-        oe.extended_remove(self.model_directory, True)
+        oe.extended_remove(self.model_directory, True, save_extension='log')
 
     @log_func('drop all models')
     def drop_all(self):
@@ -71,7 +75,7 @@ class ModelManager:
     @log_func('create model from json')
     def create_model_from_json(self, file_path):
         self.logger.debug('create model from json', file_path=file_path)
-        dic = mt.create_models_from_file(file_path, True)
+        dic = mt.create_models_from_file(file_path, self.log_generator, self.logger, True)
         if 'worker' in dic:
             worker = dic['worker']
         else:
@@ -82,7 +86,7 @@ class ModelManager:
     @log_func('create models from script')
     def create_models_from_script(self, file_path):
         self.logger.debug('create models from script', file_path=file_path)
-        model_templates = mt.create_models_from_file(file_path)
+        model_templates = mt.create_models_from_file(file_path, self.log_generator, self.logger)
         for each in model_templates:
             self.create_model(each.compile(), each.get_worker())
 
@@ -90,9 +94,9 @@ class ModelManager:
     def create_new_template(self, model_name, model_attrs=None, model_partition=None, model_key=None, model_delimiter=None,
                          attr_defaults=None, model_worker=None, hide_attrs=None, load_mode=None):
         if self.template is not None:
-            self.logger.error('create new template', 'current template doesn\'t empty')
-            raise me.ModelManagerException('Create new template', model_name, 'Template is not empty! ({})'.format(self.template))
-        self.template = mt.ModelTemplate(model_name, self.logger.log_file, model_attrs, model_partition, model_key, model_delimiter,
+            self.logger.error('create new template', 'current template doesn\'t empty', me.ModelManagerException)
+            # raise me.ModelManagerException('Create new template', model_name, 'Template is not empty! ({})'.format(self.template))
+        self.template = mt.ModelTemplate(model_name, self.log_generator, model_attrs, model_partition, model_key, model_delimiter,
                                          attr_defaults, model_worker, hide_attrs, load_mode)
 
     def _check_template_exist(self, err_msg):
@@ -197,14 +201,15 @@ class ModelManager:
             else:
                 build_view_flg = False
         if not isinstance(build_view_flg, bool):
-            self.logger.error('reading model data', 'build_view_flg: bool required, but {} found'.format(build_view_flg))
-            raise me.ModelManagerException('Read model data Error', model_name, 'partition_filter \'{0}\', data_filter \'{1}\''.format(
-                partition_filter, data_filter
-            ), 'incorrect value for build_view_flg: boolean value required, but {} found'.format(
-                build_view_flg
-            ))
-        view = mv.ModelView(model_name, data, build_view_flg, worker.get_model_key(model_name), worker.get_row_map(model_name),
-                            self.meta.get_model_hide_list(worker_name, model_name))
+            self.logger.error('reading model data', 'build_view_flg: bool required, but {} found'.format(build_view_flg),
+                              me.ModelManagerException)
+            # raise me.ModelManagerException('Read model data Error', model_name, 'partition_filter \'{0}\', data_filter \'{1}\''.format(
+            #     partition_filter, data_filter
+            # ), 'incorrect value for build_view_flg: boolean value required, but {} found'.format(
+            #     build_view_flg
+            # ))
+        view = mv.ModelView(model_name, data, self.log_generator, build_view_flg, worker.get_model_key(model_name),
+                            worker.get_row_map(model_name), self.meta.get_model_hide_list(worker_name, model_name))
         return view
 
     @log_func('writing model data')

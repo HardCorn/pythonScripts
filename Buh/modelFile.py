@@ -232,12 +232,13 @@ class ModelFileWorker:
             name - имя модели, к нему привязывается header этой модели
             data_path - путь к файлам модели
     """
-    def __init__(self, data_path, model_meta=None):
+    def __init__(self, data_path, get_logger, model_meta=None):
         if model_meta is None:
             self.model_meta = dict()    # создаем с пустым словарем
         else:
             self.model_meta = model_meta
         self.model_meta[DATA_PATH] = data_path
+        self.logger = mu.Logger('ModelFileWorker', get_logger)
 
     def _write_header(self, name):
         if name not in self.model_meta:

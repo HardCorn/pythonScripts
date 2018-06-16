@@ -82,7 +82,7 @@ def rmdir(path, ignore_errors):
         os.rmdir(path)
 
 
-def extended_remove(path, recursive=False, ignore_errors=True, save_income_path=True, _seq=0):
+def extended_remove(path, recursive=False, ignore_errors=True, save_income_path=True, save_extension=None, _seq=0):
     if not recursive:
         if not os.path.exists(path):
             pass
@@ -98,8 +98,18 @@ def extended_remove(path, recursive=False, ignore_errors=True, save_income_path=
             obj = os.path.join(path, each)
             if os.path.isdir(obj):
                 dirs.append(obj)
-            else:
+            elif save_extension is None or not (isinstance(save_extension, list) or isinstance(save_extension, tuple)
+                                                or isinstance(save_extension, str)):
                 files.append(obj)
+            else:
+                ext = obj.rfind('.')
+                if ext != -1:
+                    ext = obj[ext + 1:]
+                    if (not isinstance(save_extension, str) and ext not in save_extension) or (isinstance(save_extension, str)
+                                                                                               and ext != save_extension):
+                        files.append(obj)
+                else:
+                    files.append(obj)
         for each in dirs:
             extended_remove(each, recursive, ignore_errors, False, _seq=_seq + 1)
         for each in files:

@@ -1,5 +1,6 @@
 import modelExceptions as me
 from modelFile import ACTUALITY_FIELD_NAME
+import modelUtility as mu
 
 
 def check_type(data):
@@ -14,9 +15,10 @@ def check_type(data):
 
 
 class ModelView:
-    def __init__(self, name, data, build_view=False, key=None, row_map=None, hide=None):
+    def __init__(self, name, data, log_generator, build_view=False, key=None, row_map=None, hide=None):
         check_type(data)
         hide = hide or list()
+        self.logger = mu.Logger('ModelView', log_generator)
         self.hide = hide
         self.name = name
         self.data = data
@@ -26,21 +28,29 @@ class ModelView:
         if build_view:
             self.convert_to_view()
 
+    log_func = mu.Decor._logger
+
+    @log_func()
     def convert_to_view(self):
         if not self.view:
             self.data = self.build_view()
             self.view = True
 
+    @log_func()
     def build_view(self):
         key = self.key
         row_map = self.row_map
         if not isinstance(key, int) or not isinstance(row_map, list):
-            raise me.ModelViewException(self.name, 'Build View Error', 'Can\'t build view with key = {0} and row_map = {1}'.format(
+            self.logger.error('buid_view', 'Can\'t build view with key = {0} and row_map = {1}'.format(
                 key, row_map
-            ))
+            ), me.ModelViewException)
+            # raise me.ModelViewException(self.name, 'Build View Error', 'Can\'t build view with key = {0} and row_map = {1}'.format(
+            #     key, row_map
+            # ))
         key = key - 1
         if key not in range(len(row_map)):
-            raise me.ModelViewException(self.name, 'Build View Error', 'Incorrect key: {}'.format(key))
+            self.logger.error('build_view', 'Incorrect key: {}'.format(key), me.ModelViewException)
+            # raise me.ModelViewException(self.name, 'Build View Error', 'Incorrect key: {}'.format(key))
         res_dict = dict()
         actuality_dict = dict()
         hide = list()
@@ -50,12 +60,16 @@ class ModelView:
             actuality = row_map.index(ACTUALITY_FIELD_NAME)
         else:
             actuality = -1
+        self.logger.debug('build_view', name=self.name, key=key, row_map=row_map, hide=hide)
         for each in self.data:
             inner_dict = dict()
             if len(row_map) != len(each):
-                raise me.ModelViewException(self.name, 'View build Error', 'metadata desync: row: \'{0}\', row_map: \'{1}\''.format(
+                self.logger.error('build_view', 'metadata desync: row: \'{0}\', row_map: \'{1}\''.format(
                                                 each, row_map
-                                            ))
+                                            ), me.ModelViewException)
+                # raise me.ModelViewException(self.name, 'View build Error', 'metadata desync: row: \'{0}\', row_map: \'{1}\''.format(
+                #                                 each, row_map
+                #                             ))
             for num in range(len(each)):
                 if num != key and num not in hide:
                     inner_dict[row_map[num]] = each[num]
@@ -70,20 +84,30 @@ class ModelView:
                 res_dict[each[key]] = inner_dict
         return res_dict
 
+    @log_func()
     def __getitem__(self, item):
+        self.logger.debug('__getitem__', name=self.name, view=self.view, item=item)
         if not self.view:
             if not isinstance(item, int):
-                raise me.ModelViewException(self.name, 'Get item Error', 'Current instance contains simple data, not a view!',
-                                            'Can\'t get item \'{}\''.format(item))
+                self.logger.error('__getitem__', 'Current instance contains simple data, not a view!' +
+                                            'Can\'t get item \'{}\''.format(item), me.ModelViewException)
+                # raise me.ModelViewException(self.name, 'Get item Error', 'Current instance contains simple data, not a view!',
+                #                             'Can\'t get item \'{}\''.format(item))
             elif item >= len(self.data):
-                raise me.ModelViewException(self.name, 'Get item Error', 'Data index could be only between {0} and {1}, (got {2})'.format(
+                self.logger.error('__getitem__', 'Data index could be only between {0} and {1}, (got {2})'.format(
                     0, len(self.data) - 1, item
-                ))
+                ), me.ModelViewException)
+                # raise me.ModelViewException(self.name, 'Get item Error', 'Data index could be only between {0} and {1}, (got {2})'.format(
+                #     0, len(self.data) - 1, item
+                # ))
         else:
             if item not in self.data:
-                raise me.ModelViewException('Get item Error', self.name, 'Item \'{}\' not found!'.format(
+                self.logger.error('__getitem__', 'Item \'{}\' not found!'.format(
                     item
-                ))
+                ), me.ModelViewException)
+                # raise me.ModelViewException('Get item Error', self.name, 'Item \'{}\' not found!'.format(
+                #     item
+                # ))
         res_tmp = self.data[item]
         res = dict()
         if self.view:
@@ -95,6 +119,7 @@ class ModelView:
                 res[self.row_map[each]] = self.data[item][each]
         return res
 
+    @log_func()
     def get_data(self, build_view=False):
         if build_view:
             if self.view:
@@ -104,10 +129,13 @@ class ModelView:
         else:
             return self.data
 
+    @log_func()
     def convert_to_list(self):
+        self.logger.debug('convert_to_list', name=self.name, view=self.view, hide=self.hide, row_map=self.row_map)
         if self.view:
             if not(len(self.hide) == 1 and self.hide[0] == ACTUALITY_FIELD_NAME) and len(self.hide) > 1:
-                raise me.ModelViewException('Can\'t rebuild hidden data')
+                self.logger.error('convert_to_list', 'Can\'t rebuild hidden data', me.ModelViewException)
+                # raise me.ModelViewException('Can\'t rebuild hidden data')
             res_list = list()
             key = self.row_map[self.key - 1]
             for unit in self.data:

@@ -3,6 +3,11 @@ import modelExceptions as me
 import dates as dt
 from functools import wraps
 import os
+import logFile as lf
+
+
+class MainLog(lf.BaseSingletonTextFile):
+    pass
 
 
 def get_meta_path(home_dir):
@@ -27,6 +32,10 @@ def get_log_path(home_dir):
     return os.path.join(log_path, 'main_log.log')
 
 
+def get_log_file(log_path):
+    return lf.get_log_file(MainLog, log_path)
+
+
 def build_simple_view(list_str, key):
     fkey = key - 1
     if fkey == 0:
@@ -40,11 +49,12 @@ def build_simple_view(list_str, key):
 
 
 class Logger:
-    def __init__(self, name, log_path):
+    def __init__(self, name, get_log_generator):
         self.name = name
-        self.log_file = log_path
-        with open(self.log_file, 'a'):
-            pass                    # просто для проверки валидности пути
+        self.logger = next(get_log_generator)
+        # self.log_file = log_path
+        # with open(self.log_file, 'a'):
+        #     pass                    # просто для проверки валидности пути
 
     def log(self, *msg):
         if len(msg) < 1:
@@ -53,8 +63,9 @@ class Logger:
             msg = list(msg)
             msg[len(msg) - 1] = msg[len(msg) - 1] + '\n'
         write_list = [dt.datetime_to_str(dt.dt.datetime.now()), self.name] + msg
-        with open(self.log_file, 'a') as f:
-            f.write(': '.join(write_list))
+        self.logger.write(': '.join(write_list))
+        # with open(self.log_file, 'a') as f:
+        #     f.write(': '.join(write_list))
 
     def debug(self, name, **kwargs):
         tmp_str = name + ': DEBUG: '
@@ -75,7 +86,7 @@ class Logger:
 
 class Decor:
     @staticmethod
-    def _logger(name):
+    def _logger(name=None):
         def decorator(function_):
             @wraps(function_)
             def wrapper(*args, **kwargs):

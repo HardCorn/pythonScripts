@@ -187,40 +187,40 @@ def set_default_config(config : config.Config):
 #         res_dict[each[0]] = each[1]
 #     return res_dict
 
-def drop_all(home_dir, save_income_path=False):
-    oe.extended_remove(home_dir, recursive=True, ignore_errors=True, save_income_path=save_income_path)
+def drop_all(home_dir, save_income_path=False, save_extension='log'):
+    oe.extended_remove(home_dir, recursive=True, ignore_errors=True, save_income_path=save_income_path, save_extension=
+                       save_extension)
 
 
-def create_meta(home_dir=None):
-    home_dir = home_dir or oe.get_self_dir()
+def create_meta(home_dir, get_logger):
     meta_dir = get_meta_path(home_dir)
     data_dir = get_data_path(home_dir)
     log_dir = get_log_dir(home_dir)
     main_base_dir = data_dir + MAIN_BASE_NAME + '\\'
-    oe.revalidate_path(home_dir, True)
-    oe.revalidate_path(log_dir)
+    # oe.revalidate_path(home_dir, True)    # проверяются на уровень выше, в менеджере
+    # oe.revalidate_path(log_dir)
     oe.revalidate_path(meta_dir)
     oe.revalidate_path(data_dir)
     oe.revalidate_path(main_base_dir)
-    inner_logger = mu.Logger('MetaDataCreator', get_log_path(home_dir))
+    inner_logger = mu.Logger('MetaDataCreator', get_logger)
     inner_logger.log('create metadata', 'start')
-    worker = mf.ModelFileWorker(meta_dir)
+    worker = mf.ModelFileWorker(meta_dir, get_logger)
     worker.create_model(**MODEL_WORKERS_DICT)
     worker.insert_simple_data(WORKERS_MODEL_NAME, [MAIN_BASE_NAME, main_base_dir],
                               [ATTR_WORKER_NAME, ATTR_WORKER_DIR])
     worker.create_model(**MODEL_ID_GEN_DICT)
     worker.create_model(**MODEL_MODELS_DICT)
-    worker.create_model(**MODEL_CONFIG_DICT)
+    # worker.create_model(**MODEL_CONFIG_DICT)  # сменился подход к ведению конфигов
     inner_logger.log('create metadata', 'ended successfully')
     # set_default_config(worker)
     return worker
 
 
-def add_worker(meta_worker : mf.ModelFileWorker, home_dir, worker_name):
+def add_worker(meta_worker : mf.ModelFileWorker, home_dir, worker_name, get_logger):
     path = get_worker_path(home_dir, worker_name)
     meta_worker.insert_simple_data(WORKERS_MODEL_NAME, [worker_name, path],
                                    [ATTR_WORKER_NAME, ATTR_WORKER_DIR])
-    return mf.ModelFileWorker(path)
+    return mf.ModelFileWorker(path, get_logger)
 
 
 def drop_worker(meta_worker : mf.ModelFileWorker, worker_name, worker_path, filter):
@@ -282,44 +282,44 @@ def add_model(meta_worker : mf.ModelFileWorker, worker_name, model_name, model_h
     meta_worker.write_model_data(IDS_MODEL_NAME, id_list, attr_list, brutal=True)
 
 
-def start_meta(home_dir, brutal):
+def start_meta(home_dir, brutal, get_logger):
     meta_path = get_meta_path(home_dir)
     if not os.path.exists(meta_path) or brutal:
-        return create_meta(home_dir)
+        return create_meta(home_dir, get_logger)
     else:
-        return mf.ModelFileWorker(meta_path)
+        return mf.ModelFileWorker(meta_path, get_logger)
 
 
 class ModelMeta:
-    def __init__(self, home_dir, brutal=False):
+    def __init__(self, home_dir, get_logger, brutal=False):
         self.model_path = home_dir
         self.filter = mu.Filter()
-        self.worker = start_meta(home_dir, brutal)
-        self.logger = mu.Logger('ModelMeta', get_log_path(home_dir))
+        self.worker = start_meta(home_dir, brutal, get_logger)
+        self.logger = mu.Logger('ModelMeta', get_logger)
         try:
             data_workers = self.worker.read_model_data(WORKERS_MODEL_NAME)
             for each in data_workers:
-                each[1] = mf.ModelFileWorker(each[1])
+                each[1] = mf.ModelFileWorker(each[1], get_logger)
             self.data_workers = mu.build_simple_view(data_workers, self.worker.get_model_key(WORKERS_MODEL_NAME))
             conf_file = os.path.join(get_meta_path(home_dir), CONFIG_FILE_NAME)
             self.config = config.Config(conf_file)
             if len(self.config) == 0:
                 set_default_config(self.config)
         except:
-            self.logger.error('metadata initialization', 'cat\'t read model metadata')
-            raise me.ModelMetaException('Error metadata initializing', 'Can\'t read model metadata, it\'s broken!')
+            self.logger.error('metadata initialization', 'cat\'t read model metadata', me.ModelMetaException)
+            # raise me.ModelMetaException('Error metadata initializing', 'Can\'t read model metadata, it\'s broken!')
 
     log_func = mu.Decor._logger
 
     @log_func('add data worker')
-    def add_data_worker(self, worker_name):
+    def add_data_worker(self, worker_name, get_logger):
         self.logger.debug('add data worker', worker_name=worker_name)
         path = get_worker_path(self.model_path, worker_name)
         if os.path.exists(path):
             self.logger.error('add data worker', 'worker {} already exist'.format(worker_name), me.ModelMetaException)
             # raise me.ModelMetaException('Add data worker Error', 'Worker called {} already exist!'.format(worker_name))
         oe.revalidate_path(path)
-        self.data_workers[worker_name] = add_worker(self.worker, self.model_path, worker_name)
+        self.data_workers[worker_name] = add_worker(self.worker, self.model_path, worker_name, get_logger)
         return self.data_workers[worker_name]
 
     @log_func('drop worker from metadata')
