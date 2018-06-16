@@ -79,24 +79,30 @@ class Decor:
         def decorator(function_):
             @wraps(function_)
             def wrapper(*args, **kwargs):
-                args[0].logger.log(name, 'start')
+                args[0].logger.log(name_redefine(function_, name), 'start')
                 res = function_(*args, **kwargs)
-                args[0].logger.log(name, 'ended successfully')
+                args[0].logger.log(name_redefine(function_, name), 'ended successfully')
                 return res
             return wrapper
         return decorator
 
 
-def logger(logger_, name='type'):
+def logger(logger_, name=None):
     def decorator(function_):
         @wraps(function_)
         def wrapper(*args, **kwargs):
-            logger_(name, 'start', 'dd')
+            logger_(name_redefine(function_, name), 'start', 'dd')
             res = function_(*args, **kwargs)
-            logger_(name, 'ended successfully')
+            logger_(name_redefine(function_, name), 'ended successfully')
             return res
         return wrapper
     return decorator
+
+
+def name_redefine(func_, name=None):
+    if name is None:
+        return func_.__name__
+    return name
 
 
 class Filter:
@@ -164,7 +170,7 @@ if __name__ == '__main__':
             print(msg)
     log = logs()
 
-    @logger(log.log, 'some_string')
+    @logger(log.log)
     def func(value):
         print('nothing matters', value)
         return value + 1

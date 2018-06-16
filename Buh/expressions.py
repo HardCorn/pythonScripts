@@ -274,6 +274,10 @@ class ExpressionParser(ut.SingleTon):
         Класс, основная функция которого - парсить строковые выражения и возвращать либо объект Expression, либо результат
         Кэширует предыдущие результаты
     """
+
+    def _init(self):
+        self.data = dict()
+
     @staticmethod
     def _parse_simple_list(lst_):   # функция, возвращает результат разбора простой строки (без скобочек)
         ls = lst_
@@ -325,7 +329,7 @@ class ExpressionParser(ut.SingleTon):
             raise ExpressionError('Parsing string', "can't parse this type ({}) only str allowed!".format(type(str_)))
         if not str_:
             raise ExpressionError('Parsing string', "can't parse empty string!")
-        str_ = str_.lower() # если получили приводим к low-case
+        # str_ = str_.lower() # если получили приводим к low-case
         self.str_ = str_
         if str_ in self.data: # проверяем не смотрели ли мы уже такую строку
             return self.data[str_]

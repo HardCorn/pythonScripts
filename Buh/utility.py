@@ -28,26 +28,43 @@ class SingleTon(object):
     instance = {}   # словарь для хранения всех инстансов класса
     init = {}       # словарь для хранения инициализаций
 
-    def __new__(cls, data=None):
+    def __new__(cls, *args, **kwargs):
+        # print('__new__', cls.instance, cls.init)
         if cls not in cls.instance:
             cls.instance[cls] = object.__new__(cls)
             cls.init[cls] = False
             # print('new instance', cls.instance)
+        # else:
+            # cls.init[cls] = cls.init[cls] + 1
+            # print('encountered', cls.init[cls])
         return cls.instance[cls]
 
-    def __init__(self, data=None):
+    def __init__(self, *args, **kwargs):
         try:
-            if not SingleTon.init[self.__class__]:
-                self.data = data or dict()
-                SingleTon.init[self.__class__] = True
+            if not self.__class__.init[self.__class__]:
+                self._init(*args, **kwargs)
+                self.__class__.init[self.__class__] = 1
+                # print(self.__class__.init[self.__class__], 'new')
+            else:
+                self.__class__.init[self.__class__] = self.__class__.init[self.__class__] + 1
+                # print(self.__class__.init[self.__class__], 'encountered')
         except:
             raise SingleTonError(f'Unknown error. {self.__class__} has new instance, but not in init dictionary')
 
-    def __getitem__(self, value):
-        return self.data[value]
+    def _init(self, *args, **kwargs):
+        pass
 
-    def __setitem__(self, index, value):
-        raise SingleTonError(self.__class__, 'rewrite data', 'You can not rewrite data in static objects.')
+    @classmethod
+    def decr_init_counter(cls):
+        n = cls.init[cls] - 1
+        cls.init[cls] = n
+        return n
+
+    # def __getitem__(self, value):
+    #     return self.data[value]
+
+    # def __setitem__(self, index, value):
+    #     raise SingleTonError(self.__class__, 'rewrite data', 'You can not rewrite data in static objects.')
 
 
 class Sequence:         # обычная очередь
