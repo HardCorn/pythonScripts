@@ -19,6 +19,7 @@ class ModelView:
         check_type(data)
         hide = hide or list()
         self.logger = mu.Logger('ModelView', log_generator)
+        self.logger.note('__init__', 'start')
         self.hide = hide
         self.name = name
         self.data = data
@@ -27,6 +28,7 @@ class ModelView:
         self.row_map = row_map
         if build_view:
             self.convert_to_view()
+        self.logger.note('__init__', 'ended successfully')
 
     log_func = mu.Decor._logger
 

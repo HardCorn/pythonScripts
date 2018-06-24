@@ -1,19 +1,49 @@
 import utility as ut
+import datetime as dt
 
 
 class BaseSingletonTextFile(ut.SingleTon):
 
-    def _init(self, file_path, max_buff=10000):
+    def _init(self, file_path, max_buff=10000, reopen_if_closed=False):
+        self.path = file_path
         self.file = open(file_path, 'a')
         self.buffer=str()
         self.max_buff=max_buff
+        self.log_start()
+        self._reopen = reopen_if_closed
 
     # def read(self):
     #     return self.file.read()
 
+    def reopen(self):
+        if self.is_closed():
+            self.file = open(self.path, 'a')
+            self.log_reopen()
+
+    def log_start(self):
+        pass
+
+    def log_end(self):
+        pass
+
+    def log_reopen(self):
+        pass
+
+    def dump_buffer(self):
+        if self.is_closed():
+            if self._reopen:
+                self.reopen()
+            else:
+                raise ut.BaseError('File closed!')
+        self.file.write(self.buffer)
+        self.buffer = str()
+
     def write(self, string, mode='a'):
         if self.is_closed():
-            raise ut.BaseError('File closed!', self.buffer, string)
+            if self._reopen:
+                self.reopen()
+            else:
+                raise ut.BaseError('File closed!', self.buffer, string)
         if mode == 'w':
             self.file.truncate(0)
             self.file.write(string)
@@ -24,14 +54,20 @@ class BaseSingletonTextFile(ut.SingleTon):
                 self.file.write(self.buffer)
                 self.buffer = str()
         else:
+            self.file.close()
             raise ut.BaseError('Incorrect write mode: {}; only \'w\' and \'a\' are allowed'.format(mode))
 
-    def close(self):
+    def close(self, forced=False):
         n = self.__class__.decr_init_counter()
-        if n < 1:
-            self.file.write(self.buffer)
-            self.file.write('\n' + '*'*30 + 'log closed' + '*' * 30 + '\n\n')
-            self.file.close()
+        print(n)
+        if n < 1 or forced:
+            if not self.is_closed() or self._reopen:
+                if self._reopen:
+                    self.reopen()
+                # self.file.write(self.buffer)
+                self.log_end()
+                self.dump_buffer()
+                self.file.close()
             self.buffer = str()
 
     def is_closed(self):
@@ -44,8 +80,8 @@ class BaseSingletonTextFile(ut.SingleTon):
         self.close()
 
 
-def get_log_file(log_class, file_path, max_buff=10000):
-    f = log_class(file_path, max_buff)
+def get_log_file(log_class, file_path, max_buff=10000, reopen_if_closed=False):
+    f = log_class(file_path, max_buff, reopen_if_closed)
     while True:
         yield f
     # with log_class(file_path, max_buff) as f:

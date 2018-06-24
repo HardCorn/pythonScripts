@@ -44,7 +44,7 @@ class ModelTemplate:
 
     @log_func()
     def set_model_name(self, name):
-        self.logger.debug('set_model_name', name=name)
+        self.logger.debug('set_model_name', _name=name)
         self.name = name
 
     def get_worker(self):

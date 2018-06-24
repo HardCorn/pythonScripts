@@ -195,7 +195,7 @@ def drop_all(home_dir, save_income_path=False, save_extension='log'):
 def create_meta(home_dir, get_logger):
     meta_dir = get_meta_path(home_dir)
     data_dir = get_data_path(home_dir)
-    log_dir = get_log_dir(home_dir)
+    # log_dir = get_log_dir(home_dir)
     main_base_dir = data_dir + MAIN_BASE_NAME + '\\'
     # oe.revalidate_path(home_dir, True)    # проверяются на уровень выше, в менеджере
     # oe.revalidate_path(log_dir)
@@ -223,7 +223,7 @@ def add_worker(meta_worker : mf.ModelFileWorker, home_dir, worker_name, get_logg
     return mf.ModelFileWorker(path, get_logger)
 
 
-def drop_worker(meta_worker : mf.ModelFileWorker, worker_name, worker_path, filter):
+def drop_worker(meta_worker : mf.ModelFileWorker, worker_name, worker_path, filter, logger : mu.Logger):
     in_clause = ATTR_MODEL_WORKER + ' = \'' + worker_name + '\''
     out_clause = ATTR_MODEL_WORKER + ' <> \'' + worker_name + '\''
     filter.set_clause(in_clause)
@@ -296,6 +296,7 @@ class ModelMeta:
         self.filter = mu.Filter()
         self.worker = start_meta(home_dir, brutal, get_logger)
         self.logger = mu.Logger('ModelMeta', get_logger)
+        self.logger.log('__init__', 'start')
         try:
             data_workers = self.worker.read_model_data(WORKERS_MODEL_NAME)
             for each in data_workers:
@@ -308,6 +309,7 @@ class ModelMeta:
         except:
             self.logger.error('metadata initialization', 'cat\'t read model metadata', me.ModelMetaException)
             # raise me.ModelMetaException('Error metadata initializing', 'Can\'t read model metadata, it\'s broken!')
+        self.logger.log('__init__', 'ended successfully')
 
     log_func = mu.Decor._logger
 
@@ -332,7 +334,7 @@ class ModelMeta:
         if worker_name not in self.data_workers:
             self.logger.error('drop data worker', 'worker called {} not found in model metadata'.format(worker_name), me.ModelMetaException)
             # raise me.ModelMetaException('Drop data worker Error', 'Worker called {} not found in model metadata!'.format(worker_name))
-        drop_worker(self.worker, worker_name, path, self.filter)
+        drop_worker(self.worker, worker_name, path, self.filter, self.logger)
         del self.data_workers[worker_name]
 
     @log_func('add model to metadata')

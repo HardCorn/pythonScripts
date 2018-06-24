@@ -11,7 +11,7 @@ def no_fall(err_type=IOError, log_path='D:\\simple_test\\log.txt'):
                 func(*args, **kwargs)
             except err_type:
                 # print('PROCESS FALLS: ', err_type.__name__)
-                print(*args, **kwargs)
+                # print(*args, **kwargs)
                 with open(log_path, 'a') as f:
                     f.write(str(dt.datetime.now()) + ': {}: PROCESS FALLS: '.format(func.__name__) + str(err_type.__name__) + '\n')
         return wrapper

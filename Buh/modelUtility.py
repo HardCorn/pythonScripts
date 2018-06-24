@@ -7,7 +7,17 @@ import logFile as lf
 
 
 class MainLog(lf.BaseSingletonTextFile):
-    pass
+    def log_start(self):
+        self.write('\n' + '*' * 30 + 'log opened at ' + dt.datetime_to_str(dt.datetime.now()) + '*' * 30 + '\n\n')
+
+    def log_end(self):
+        self.write('\n' + '*' * 30 + 'log closed at ' + dt.datetime_to_str(dt.datetime.now()) + '*' * 30 + '\n\n')
+
+    def logging_err(self):
+        self.write('\n' + '*' * 28 + ' error occured at ' + dt.datetime_to_str(dt.datetime.now()) + '*' * 28 + '\n\n')
+
+    def log_reopen(self):
+        self.write('\n' + '*' * 29 + 'log reopened at ' + dt.datetime_to_str(dt.datetime.now()) + '*' * 29 + '\n\n')
 
 
 def get_meta_path(home_dir):
@@ -80,19 +90,31 @@ class Logger:
 
     def error(self, name, msg, exception=None):
         self.log(name, 'Error', msg)
-        self.logger.close()
-        print('closed')
+        if issubclass(exception, BaseException):
+            forced = True
+        else:
+            forced = False
+        # self.logger.close(forced=forced)
+        self.logger.logging_err()
+        self.logger.dump_buffer()
         if issubclass(exception, BaseException):
             raise exception(name, msg)
 
 
 class Decor:
     @staticmethod
-    def _logger(name=None):
+    def _logger(name=None, default_debug=False):
         def decorator(function_):
             @wraps(function_)
             def wrapper(*args, **kwargs):
                 args[0].logger.log(name_redefine(function_, name), 'start')
+                if default_debug:
+                    # args[0].logger.debug(function_.__name__, **function_.__dict__)
+                    kw_cp = kwargs.copy()
+                    if 'name' in kw_cp:
+                        kw_cp['_name_'] = kw_cp['name']
+                        del kw_cp['name']
+                    args[0].logger.debug(function_.__name__, positional_arguments=args[1:], **kw_cp)
                 res = function_(*args, **kwargs)
                 args[0].logger.log(name_redefine(function_, name), 'ended successfully')
                 return res
