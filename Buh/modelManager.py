@@ -6,7 +6,7 @@ import modelFile as mf
 import ModelTemplate as mt
 import ModelView as mv
 import logFile as lf
-from functools import wraps
+# from functools import wraps
 
 
 class ModelManager:
@@ -288,8 +288,11 @@ class ModelManager:
     def set_config(self, key, value):
         self.meta.config[key] = value
 
+    def __enter__(self):
+        return self
 
-
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        self.close_model()
 
 
 if __name__ == '__main__':

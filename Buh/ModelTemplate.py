@@ -151,7 +151,7 @@ class ModelTemplate:
             self.hide_attr(each)
 
 
-def create_models_from_file(file_path, log_generator, logger : mu.Logger, json_dict_file=False):
+def create_models_from_file(file_path, log_generator, logger : mu.Logger, json_dict_file=False, worker_name=None):
     if not json_dict_file:
         class ParserError(me.ModelTemplateException):
             def __init__(self, *args):
@@ -193,6 +193,8 @@ def create_models_from_file(file_path, log_generator, logger : mu.Logger, json_d
             if current > length:
                 logger.note(log_name, 'end of script found')
                 repeat = False
+                if worker_name is not None:
+                    tmp_model.worker = worker_name
                 models.append(tmp_model)
             elif attr_flg and not tuple_flg:
                 logger.note(log_name, 'next attribute parsing (non-tuple mode)')
@@ -425,6 +427,8 @@ def create_models_from_file(file_path, log_generator, logger : mu.Logger, json_d
                     # raise InvalidScript('key attribute name not found after \'key\' keyword')
             elif row[current] == ';':
                 logger.note(log_name, '\';\' keyword found')
+                if worker_name is not None:
+                    tmp_model.worker = worker_name
                 models.append(tmp_model)
                 tmp_model = ModelTemplate('', log_generator)
                 current += 1
