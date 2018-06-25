@@ -22,6 +22,14 @@ def refmt(fmt):                     # приводим к форматам пи�
         'HH', '%H').replace('MI', '%M').replace('SSSSSS', '%f').replace('SS', '%S')
 
 
+def current_date():
+    return datetime.now().date()
+
+
+def current_timestamp():
+    return datetime.now()
+
+
 def str_to_datetime(str_, fmt=DATETIME_DEFAULT_FMT):
     if type(str_) == str and str_ == ACTUALITY_DTTM_VALUE:  # проставляем current_timestamp
         str_ = datetime.now().strftime(refmt(fmt))
