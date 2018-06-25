@@ -276,7 +276,17 @@ class ModelManager:
     def truncate_model_data(self, model_name, worker_name=None):
         worker_name = self._revalidate_worker(worker_name)
         worker = self.meta.data_workers[worker_name]
-        worker.truncate_model_data()
+        worker.truncate_model_data(model_name)
+
+    @check
+    @default_log
+    def drop_model_partition(self, model_name, partition_filter='1=1', worker_name=None):
+        worker_name = self._revalidate_worker(worker_name)
+        worker = self.meta.data_workers[worker_name]
+        fltr = self.meta.filter
+        fltr.set_clause(partition_filter)
+        parts = worker.get_parts_list(model_name, fltr)
+        worker.drop_partition(model_name, parts)
 
     @check
     @default_log

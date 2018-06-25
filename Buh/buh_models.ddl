@@ -50,3 +50,12 @@ attrs (
     )
 partition (year None, month None, quota_type None)
 loading mode a;
+
+worker Main
+name id_mapper
+attrs (
+    model_name str key,
+    real_key_value str
+    
+)
+loading mode r;
