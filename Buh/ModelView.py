@@ -15,7 +15,7 @@ def check_type(data):
 
 
 class ModelView:
-    def __init__(self, name, data, log_generator, build_view=False, key=None, row_map=None, hide=None):
+    def __init__(self, name, data, log_generator, build_view=False, key=None, row_map=None, hide=None, filter_list=True):
         check_type(data)
         hide = hide or list()
         self.logger = mu.Logger('ModelView', log_generator)
@@ -28,9 +28,31 @@ class ModelView:
         self.row_map = row_map
         if build_view:
             self.convert_to_view()
+        elif filter_list:
+            self.filter_list()
         self.logger.note('__init__', 'ended successfully')
 
     log_func = mu.Decor._logger
+
+    @log_func()
+    def filter_list(self):
+        if ACTUALITY_FIELD_NAME not in self.row_map:
+            pass
+        else:
+            act_num = self.row_map.index(ACTUALITY_FIELD_NAME)
+            key = self.key
+
+            def sort_key(input_data):
+                return str(input_data[key]) + '|^|' + str(input_data[act_num])
+
+            self.data.sort(key=sort_key, reverse=True)
+            prev_val = None
+            res_list = list()
+            for each in self.data:
+                if prev_val != each[key]:
+                    res_list.append(each)
+                    prev_val = each[key]
+            self.data = res_list
 
     @log_func()
     def convert_to_view(self):

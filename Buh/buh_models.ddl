@@ -2,9 +2,13 @@ worker Main
 name Accounting_plan
 attrs (
     gl_account_num int key,
+    gl_account_group str,
     account_description str,
     basic_quota_amount int,
-    basic_qouta_type str
+    basic_qouta_type str,
+    technical_account_flg int default 0,
+    month_regeneration_flg int default 0,
+    actual_account_num int
     )
 loading mode r;
 
@@ -13,7 +17,12 @@ name Accounts
 attrs (
     account_num int key,
     gl_account_num int,
-    account_description str
+    account_description str,
+    consolid_account_num int,
+    account_holder str,
+    actual_account_flg int default 1,
+    account_year int,
+    account_month int
     )
 loading mode a;
 
@@ -25,16 +34,19 @@ attrs (
     credit_account_num int,
     entry_amount int,
     entry_date date partition 'YYYYMM',
-    entry_desctiption str
+    owner_name str,
+    profit_flg int,
+    entry_description str
     )
 loading mode a;
 
 worker Main
 name Balance
 attrs (
-    account_num int key,
+    account_num int,
     balance_amount int,
-    balance_date date partition 'YYYYMM'
+    balance_date date partition 'YYYYMM',
+    row_id int key
     )
 loading mode a;
 

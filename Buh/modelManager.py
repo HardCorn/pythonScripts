@@ -17,6 +17,7 @@ class ModelManager:
         self.model_directory = model_directory
         if recreate_flg:
             self._drop_all()
+        initial = oe.chek_path(model_directory, check_empty=True)
         oe.revalidate_path(model_directory, True)
         log_file_path = mu.get_log_path(model_directory)
         oe.revalidate_path(mu.get_log_dir(model_directory))
@@ -25,6 +26,11 @@ class ModelManager:
         self.logger = mu.Logger('ModelManager', self.log_generator)
         self.template = None
         self._closed = False
+        if initial:
+            self._init()
+
+    def _init(self):
+        pass
 
     log_func = mu.Decor._logger
     default_log = mu.Decor._logger(default_debug=True)
@@ -251,6 +257,16 @@ class ModelManager:
 
     @check
     @log_func()
+    def get_model_parts_list(self, model_name, worker_name=None, parts_filter='1=1'):
+        self.logger.debug('get_model_parts_list', model_name=model_name, worker_name=worker_name)
+        worker_name = self._revalidate_worker(worker_name)
+        worker = self.meta.data_workers[worker_name]
+        fltr = self.get_filter(parts_filter)
+        return worker.get_parts_list(model_name, fltr)
+
+
+    @check
+    @log_func()
     def write_model_data(self, model_name, list_str, attr_list=None, worker_name=None):
         self.logger.debug('write_model_data', worker_name=worker_name, model_name=model_name, attr_list=attr_list)
         worker_name = self._revalidate_worker(worker_name)
@@ -297,6 +313,13 @@ class ModelManager:
     @default_log
     def set_config(self, key, value):
         self.meta.config[key] = value
+
+    @check
+    @default_log
+    def get_filter(self, fltr_string='1=1'):
+        fltr = self.meta.filter
+        fltr.set_clause(fltr_string)
+        return fltr
 
     def __enter__(self):
         return self

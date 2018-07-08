@@ -160,7 +160,8 @@ def remap_str(str_, attr_list, file_map, defaults):     # Приводим ст�
     res_str = list(defaults)
     for num in range(len(attr_list)):
         each = attr_list[num]
-        res_str[file_map[each] - 1] = str_[num]
+        if each != ACTUALITY_FIELD_NAME:
+            res_str[file_map[each] - 1] = str_[num]
     return res_str
 
 

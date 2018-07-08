@@ -53,8 +53,15 @@ def revalidate_path(path, recursive=False):
         return res
 
 
-def chek_file(path):
-    return os.path.exists(path)
+def chek_path(path, check_empty=False):
+    if not check_empty or not os.path.exists(path):
+        return os.path.exists(path)
+    else:
+        ls = os.listdir(path)
+        if len(ls) > 0:
+            return True
+        else:
+            return False
 
 
 @no_fall(IOError)
